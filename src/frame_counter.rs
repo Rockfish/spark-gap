@@ -6,14 +6,14 @@ pub struct FrameCounter {
 }
 
 impl FrameCounter {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             last_printed_instant: web_time::Instant::now(),
             frame_count: 0,
         }
     }
 
-    pub(crate) fn update(&mut self) {
+    pub fn update(&mut self) {
         self.frame_count += 1;
         let new_instant = web_time::Instant::now();
         let elapsed_secs = (new_instant - self.last_printed_instant).as_secs_f32();

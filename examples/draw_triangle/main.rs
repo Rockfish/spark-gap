@@ -1,11 +1,9 @@
 mod context;
 mod draw;
-mod frame_counter;
 
 use crate::context::Context;
 use crate::draw::{create_render_pipeline, draw};
-use crate::frame_counter::FrameCounter;
-use log::info;
+use spark_gap::frame_counter::FrameCounter;
 use std::sync::Arc;
 use winit::keyboard::NamedKey::Escape;
 use winit::{

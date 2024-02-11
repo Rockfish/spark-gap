@@ -22,10 +22,11 @@ russimp = { path = "../russimp_glam" }
 wgpu = "0.19.1"
 winit = "0.29.10"
 log = "0.4.20"
+web-time = "1.0.0"
+bytemuck = { version = "1.14.3", features = [ "derive" ] }
 
 [dev-dependencies]
 pollster = "0.3.0"
-web-time = "1.0.0"
 
 [[example]]
 name = "gltf_example"
@@ -38,3 +39,7 @@ path = "examples/winit_window.rs"
 [[example]]
 name = "draw_triangle"
 path = "examples/draw_triangle/main.rs"
+
+[[example]]
+name = "draw_cube"
+path = "examples/draw_cube/main.rs"
