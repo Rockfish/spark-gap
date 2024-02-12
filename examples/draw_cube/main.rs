@@ -1,13 +1,10 @@
 mod context;
 mod cube;
 mod texture;
-mod bindings;
 mod model;
 mod camera;
 
-use std::borrow::Cow;
 use crate::context::Context;
-use crate::cube::{Cube};
 use spark_gap::frame_counter::FrameCounter;
 use std::sync::Arc;
 use wgpu::{BindGroupLayout, RenderPipeline};
@@ -20,15 +17,19 @@ use winit::{
 };
 use crate::camera::{Camera, CameraHandler};
 use crate::model::Model;
+use crate::texture::{create_depth_texture, Texture};
 
 async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
     let mut context = Context::new(window).await;
     let mut frame_counter = FrameCounter::new();
 
 
+
     let model = Model::new(&context);
     let camera = Camera::new();
     let camera_handler = CameraHandler::new(&context, &camera);
+
+    let depth_texture = create_depth_texture(&context, "depth_texture");
 
     let render_pipeline = create_render_pipeline(&context, &model.material.bind_group_layout, &camera_handler.bind_group_layout);
 
@@ -46,7 +47,7 @@ async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
                     WindowEvent::RedrawRequested => {
                         frame_counter.update();
 
-                        draw(&context, &render_pipeline, &camera_handler, &model);
+                        draw(&context, &render_pipeline, &camera_handler, &model, &depth_texture);
 
                         context.window.request_redraw();
                     }
@@ -99,10 +100,22 @@ pub fn create_render_pipeline(context: &Context, texture_bind_group_layout: &Bin
                 targets: &[Some(swapchain_format.into())],
             }),
             primitive: wgpu::PrimitiveState {
-                cull_mode: Some(wgpu::Face::Back),
-                ..Default::default()
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None, // Some(wgpu::Face::Back),
+                unclipped_depth: false,
+                polygon_mode: wgpu::PolygonMode::Fill,
+                conservative: false,
             },
-            depth_stencil: None,
+            // depth_stencil: None,
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format:  wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
         });
@@ -110,7 +123,7 @@ pub fn create_render_pipeline(context: &Context, texture_bind_group_layout: &Bin
     render_pipeline
 }
 
-pub fn draw(context: &Context, render_pipeline: &RenderPipeline, camera_handler: &CameraHandler, model: &Model) {
+pub fn draw(context: &Context, render_pipeline: &RenderPipeline, camera_handler: &CameraHandler, model: &Model, depth_texture: &Texture) {
     let frame = context
         .surface
         .get_current_texture()
@@ -132,11 +145,23 @@ pub fn draw(context: &Context, render_pipeline: &RenderPipeline, camera_handler:
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
+                        load: wgpu::LoadOp::Clear(wgpu::Color{
+                            r: 0.1,
+                            g: 0.2,
+                            b: 0.1,
+                            a: 1.0,
+                        }),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &depth_texture.view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
@@ -185,7 +210,7 @@ pub fn main() {
     let window = Arc::new(
         builder
             .with_title("A triangle.")
-            .with_inner_size(winit::dpi::LogicalSize::new(400.0, 400.0))
+            .with_inner_size(winit::dpi::LogicalSize::new(800.0, 800.0))
             .build(&event_loop)
             .unwrap(),
     );

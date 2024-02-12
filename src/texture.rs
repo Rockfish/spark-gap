@@ -1,11 +1,6 @@
 use crate::error::Error;
-use crate::error::Error::ImageError;
-// use crate::gl;
-// use crate::gl::{GLint, GLsizei, GLuint, GLvoid};
-// use crate::shader::Shader;
-use image::ColorType;
 use russimp::sys::aiTextureType;
-use std::ffi::{c_uint, OsString};
+use std::ffi::OsString;
 use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 

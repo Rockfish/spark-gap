@@ -101,7 +101,7 @@ impl Context {
         self.window.request_redraw(); // for macos
     }
 
-    fn _input(&mut self, event: &WindowEvent) -> bool {
+    fn _input(&mut self, _event: &WindowEvent) -> bool {
         false
     }
 

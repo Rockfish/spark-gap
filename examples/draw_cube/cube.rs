@@ -1,12 +1,3 @@
-use std::f32::consts;
-use wgpu::{BindGroup, BindGroupLayout, RenderPipeline};
-use wgpu::util::DeviceExt;
-use crate::context::Context;
-
-// pub struct Cube {
-//     vertex_buffer: wgpu::Buffer,
-//     bind_group: wgpu::BindGroup,
-// }
 
 pub struct Cube {
     pub vertex_data: [f32; 180],
@@ -23,9 +14,6 @@ impl Cube {
             num_elements: 36
         }
     }
-
-
-
 
     pub(crate) fn get_cube_vertices () -> [f32; 180] {
         #[rustfmt::skip]

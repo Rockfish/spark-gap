@@ -1,5 +1,3 @@
-use wgpu::BindingType::Texture;
-use wgpu::RenderPipeline;
 use wgpu::util::DeviceExt;
 use crate::context::Context;
 use crate::cube::Cube;
