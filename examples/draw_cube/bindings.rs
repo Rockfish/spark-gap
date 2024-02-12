@@ -6,7 +6,7 @@ use crate::cube::Cube;
 use crate::model::Model;
 use crate::texture::get_texture;
 
-pub fn create_bind_group_layout(context: &Context) -> BindGroupLayout {
+pub fn _create_bind_group_layout(context: &Context) -> BindGroupLayout {
     let bind_group_layout = context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: None,
         entries: &[

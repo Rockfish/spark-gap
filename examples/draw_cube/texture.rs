@@ -99,7 +99,7 @@ pub fn get_texture_bind_group(context: &Context) -> (BindGroupLayout, BindGroup)
                 label: Some("texture_bind_group_layout"),
             });
 
-    let diffuse_bind_group = context.device.create_bind_group(
+    let texture_bind_group = context.device.create_bind_group(
         &wgpu::BindGroupDescriptor {
             layout: &texture_bind_group_layout,
             entries: &[
@@ -116,5 +116,5 @@ pub fn get_texture_bind_group(context: &Context) -> (BindGroupLayout, BindGroup)
         }
     );
 
-    (texture_bind_group_layout, diffuse_bind_group)
+    (texture_bind_group_layout, texture_bind_group)
 }

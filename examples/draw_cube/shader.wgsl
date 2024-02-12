@@ -20,7 +20,7 @@ fn vs_main(model: VertexInput) -> VertexOutput {
 
     var result: VertexOutput;
 
-    result.position = transform * model.position;
+    result.position = transform * vec4<f32>(model.position, 1.0);
     result.tex_coords = model.tex_coords;
 
     return result;
@@ -28,11 +28,11 @@ fn vs_main(model: VertexInput) -> VertexOutput {
 
 // Fragment shader
 
-@group(0)
+@group(1)
 @binding(0)
 var t_diffuse: texture_2d<f32>;
 
-@group(0)
+@group(1)
 @binding(1)
 var s_diffuse: sampler;
 

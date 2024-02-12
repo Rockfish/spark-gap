@@ -101,15 +101,15 @@ impl Context {
         self.window.request_redraw(); // for macos
     }
 
-    fn input(&mut self, event: &WindowEvent) -> bool {
+    fn _input(&mut self, event: &WindowEvent) -> bool {
         false
     }
 
-    fn update(&mut self) {
+    fn _update(&mut self) {
         todo!()
     }
 
-    fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+    fn _render(&mut self) -> Result<(), wgpu::SurfaceError> {
         todo!()
     }
 }

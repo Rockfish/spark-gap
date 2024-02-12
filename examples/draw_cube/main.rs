@@ -69,15 +69,16 @@ pub fn create_render_pipeline(context: &Context, texture_bind_group_layout: &Bin
 
     let pipeline_layout = context.device.create_pipeline_layout(
         &wgpu::PipelineLayoutDescriptor {
-            label: None,
-            bind_group_layouts: &[texture_bind_group_layout, camera_bind_group_layout],
+            label: Some("Render Pipeline Layout"),
+            bind_group_layouts: &[camera_bind_group_layout, texture_bind_group_layout],
             push_constant_ranges: &[],
         });
 
     let shader = context.device.create_shader_module(
         wgpu::ShaderModuleDescriptor {
-            label: None,
-            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("shader.wgsl"))),
+            label: Some("shader.wgsl"),
+            // source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("shader.wgsl"))),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 
     let swapchain_capabilities = context.surface.get_capabilities(&context.adapter);
@@ -146,10 +147,10 @@ pub fn draw(context: &Context, render_pipeline: &RenderPipeline, camera_handler:
         render_pass.set_vertex_buffer(0, model.mesh.vertex_buffer.slice(..));
 
         // transform for vertex shader
-        render_pass.set_bind_group(1, &camera_handler.bind_group, &[]);
+        render_pass.set_bind_group(0, &camera_handler.bind_group, &[]);
 
         // material for fragment shader
-        render_pass.set_bind_group(0, &model.material.bind_group, &[]);
+        render_pass.set_bind_group(1, &model.material.bind_group, &[]);
 
         render_pass.draw(0..36, 0..1);
     }

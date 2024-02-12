@@ -39,7 +39,8 @@ impl Camera {
 
 impl CameraHandler {
     pub fn new(context: &Context, camera: &Camera) -> Self {
-        let camera_uniform = camera.get_camera_uniform();
+        // let camera_uniform = camera.get_camera_uniform();
+        let camera_uniform = camera.perspective_view.to_cols_array();
 
         let camera_buffer = context.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
