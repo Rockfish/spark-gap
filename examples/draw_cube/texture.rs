@@ -74,10 +74,7 @@ pub fn get_texture(context: &Context) -> Texture {
 
 pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
-pub fn create_depth_texture(
-    context: &Context,
-    label: &str,
-) -> Texture {
+pub fn create_depth_texture(context: &Context) -> Texture {
 
     let size = context.window.inner_size();
 
@@ -87,7 +84,7 @@ pub fn create_depth_texture(
         depth_or_array_layers: 1,
     };
     let desc = wgpu::TextureDescriptor {
-        label: Some(label),
+        label: Some("depth_texture"),
         size,
         mip_level_count: 1,
         sample_count: 1,

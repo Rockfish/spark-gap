@@ -2,9 +2,11 @@ use std::f32::consts;
 use glam::{Mat4, Vec3};
 use wgpu::{BindGroup, BindGroupLayout, Buffer};
 use wgpu::util::DeviceExt;
+use winit::dpi::PhysicalSize;
 use crate::context::Context;
 
 pub struct Camera {
+    pub window_size: PhysicalSize<u32>,
     pub perspective_view: Mat4,
 }
 
@@ -15,14 +17,17 @@ pub struct CameraHandler {
 }
 
 impl Camera {
-    pub fn new() -> Camera {
+    pub fn new(context: &Context) -> Camera {
+        let size = context.window.inner_size();
+
         Camera {
-            perspective_view: Self::get_projection_view_matrix(),
+            window_size: size,
+            perspective_view: Self::get_projection_view_matrix(size),
         }
     }
 
-    pub fn get_projection_view_matrix() -> Mat4 {
-        let aspect_ratio = 1.0;
+    pub fn get_projection_view_matrix(size: PhysicalSize<u32>) -> Mat4 {
+        let aspect_ratio = size.width as f32 / size.height as f32;
         let projection = Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 10.0);
         let view = Mat4::look_at_rh(
             Vec3::new(1.5f32, -5.0, 3.0),
@@ -34,6 +39,14 @@ impl Camera {
 
     pub fn get_camera_uniform(&self) -> [f32; 16] {
         self.perspective_view.to_cols_array()
+    }
+
+    pub fn update(&mut self, context: &Context) {
+        let size = context.window.inner_size();
+        if self.window_size != size {
+           self.window_size = size;
+            self.perspective_view = Self::get_projection_view_matrix(size);
+        }
     }
 }
 
@@ -87,7 +100,10 @@ impl CameraHandler {
         }
     }
 
-    pub fn update_camera_buffer(&self, context: &Context, camera: &Camera) {
+    pub fn update_camera(&self, context: &Context, camera: &mut Camera) {
+
+        camera.update(context);
+
         let camera_uniform = camera.get_camera_uniform();
         context.queue.write_buffer(
             &self.camera_buffer,
