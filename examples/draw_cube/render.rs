@@ -1,3 +1,8 @@
+use crate::camera::{Camera, CameraHandler};
+use crate::context::Context;
+use crate::model::Model;
+use crate::texture::{create_depth_texture, Texture};
+use spark_gap::frame_counter::FrameCounter;
 use std::sync::Arc;
 use wgpu::{BindGroupLayout, RenderPipeline};
 use winit::event::{Event, WindowEvent};
@@ -5,11 +10,13 @@ use winit::event_loop::EventLoop;
 use winit::keyboard;
 use winit::keyboard::NamedKey::Escape;
 use winit::window::Window;
-use spark_gap::frame_counter::FrameCounter;
-use crate::camera::{Camera, CameraHandler};
-use crate::context::Context;
-use crate::model::Model;
-use crate::texture::{create_depth_texture, Texture};
+
+const BACKGROUND_COLOR: wgpu::Color = wgpu::Color {
+    r: 0.1,
+    g: 0.2,
+    b: 0.1,
+    a: 1.0,
+};
 
 pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
     let mut context = Context::new(window).await;
@@ -22,7 +29,10 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
     let mut depth_texture = create_depth_texture(&context);
 
     let render_pipeline = create_render_pipeline(
-        &context, &model.material.bind_group_layout, &camera_handler.bind_group_layout);
+        &context,
+        &model.material.bind_group_layout,
+        &camera_handler.bind_group_layout,
+    );
 
     event_loop
         .run(move |event, target| {
@@ -36,11 +46,18 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
                         context.resize(new_size);
                         camera_handler.update_camera(&context, &mut camera);
                         depth_texture = create_depth_texture(&context);
+                        context.window.request_redraw();
                     }
                     WindowEvent::RedrawRequested => {
                         frame_counter.update();
 
-                        draw(&context, &render_pipeline, &camera_handler, &model, &depth_texture);
+                        draw(
+                            &context,
+                            &render_pipeline,
+                            &camera_handler,
+                            &model,
+                            &depth_texture,
+                        );
 
                         context.window.request_redraw();
                     }
@@ -59,7 +76,13 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
         .unwrap();
 }
 
-pub fn draw(context: &Context, render_pipeline: &RenderPipeline, camera_handler: &CameraHandler, model: &Model, depth_texture: &Texture) {
+pub fn draw(
+    context: &Context,
+    render_pipeline: &RenderPipeline,
+    camera_handler: &CameraHandler,
+    model: &Model,
+    depth_texture: &Texture,
+) {
     let frame = context
         .surface
         .get_current_texture()
@@ -69,38 +92,32 @@ pub fn draw(context: &Context, render_pipeline: &RenderPipeline, camera_handler:
         .texture
         .create_view(&wgpu::TextureViewDescriptor::default());
 
-    let mut encoder = context.device.create_command_encoder(
-        &wgpu::CommandEncoderDescriptor { label: None }
-    );
+    let mut encoder = context
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
     {
-        let mut render_pass = encoder.begin_render_pass(
-            &wgpu::RenderPassDescriptor {
-                label: Some("render pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color{
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.1,
-                            a: 1.0,
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &depth_texture.view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
-                        store: wgpu::StoreOp::Store,
-                    }),
-                    stencil_ops: None,
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("render pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(BACKGROUND_COLOR),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &depth_texture.view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: wgpu::StoreOp::Store,
                 }),
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
+                stencil_ops: None,
+            }),
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
 
         render_pass.set_pipeline(render_pipeline);
 
@@ -120,17 +137,22 @@ pub fn draw(context: &Context, render_pipeline: &RenderPipeline, camera_handler:
     frame.present();
 }
 
-pub fn create_render_pipeline(context: &Context, texture_bind_group_layout: &BindGroupLayout, camera_bind_group_layout: &BindGroupLayout) -> RenderPipeline {
-
-    let pipeline_layout = context.device.create_pipeline_layout(
-        &wgpu::PipelineLayoutDescriptor {
+pub fn create_render_pipeline(
+    context: &Context,
+    texture_bind_group_layout: &BindGroupLayout,
+    camera_bind_group_layout: &BindGroupLayout,
+) -> RenderPipeline {
+    let pipeline_layout = context
+        .device
+        .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
             bind_group_layouts: &[camera_bind_group_layout, texture_bind_group_layout],
             push_constant_ranges: &[],
         });
 
-    let shader = context.device.create_shader_module(
-        wgpu::ShaderModuleDescriptor {
+    let shader = context
+        .device
+        .create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("shader.wgsl"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
@@ -138,8 +160,9 @@ pub fn create_render_pipeline(context: &Context, texture_bind_group_layout: &Bin
     let swapchain_capabilities = context.surface.get_capabilities(&context.adapter);
     let swapchain_format = swapchain_capabilities.formats[0];
 
-    let render_pipeline = context.device.create_render_pipeline(
-        &wgpu::RenderPipelineDescriptor {
+    let render_pipeline = context
+        .device
+        .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
@@ -156,13 +179,13 @@ pub fn create_render_pipeline(context: &Context, texture_bind_group_layout: &Bin
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: None, // Some(wgpu::Face::Back),
+                cull_mode: Some(wgpu::Face::Back),
                 unclipped_depth: false,
                 polygon_mode: wgpu::PolygonMode::Fill,
                 conservative: false,
             },
             depth_stencil: Some(wgpu::DepthStencilState {
-                format:  wgpu::TextureFormat::Depth32Float,
+                format: wgpu::TextureFormat::Depth32Float,
                 depth_write_enabled: true,
                 depth_compare: wgpu::CompareFunction::Less,
                 stencil: wgpu::StencilState::default(),

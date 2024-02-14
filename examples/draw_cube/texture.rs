@@ -1,6 +1,6 @@
+use crate::context::Context;
 use image::GenericImageView;
 use wgpu::{BindGroup, BindGroupLayout};
-use crate::context::Context;
 
 pub struct Texture {
     pub texture: wgpu::Texture,
@@ -21,18 +21,16 @@ pub fn get_texture(context: &Context) -> Texture {
         depth_or_array_layers: 1,
     };
 
-    let diffuse_texture = context.device.create_texture(
-        &wgpu::TextureDescriptor {
-            label: Some("diffuse_texture"),
-            size: texture_size,
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            view_formats: &[],
-        }
-    );
+    let diffuse_texture = context.device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("diffuse_texture"),
+        size: texture_size,
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        view_formats: &[],
+    });
 
     context.queue.write_texture(
         // Tells wgpu where to copy the pixel data
@@ -68,14 +66,13 @@ pub fn get_texture(context: &Context) -> Texture {
     Texture {
         texture: diffuse_texture,
         view: diffuse_texture_view,
-        sampler: diffuse_sampler
+        sampler: diffuse_sampler,
     }
 }
 
 pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
 pub fn create_depth_texture(context: &Context) -> Texture {
-
     let size = context.window.inner_size();
 
     let size = wgpu::Extent3d {
@@ -117,13 +114,13 @@ pub fn create_depth_texture(context: &Context) -> Texture {
     }
 }
 
-
 pub fn get_texture_bind_group(context: &Context) -> (BindGroupLayout, BindGroup) {
     let texture = get_texture(context);
 
     let texture_bind_group_layout =
-        context.device.create_bind_group_layout(
-            &wgpu::BindGroupLayoutDescriptor {
+        context
+            .device
+            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
                     wgpu::BindGroupLayoutEntry {
                         binding: 0,
@@ -145,8 +142,9 @@ pub fn get_texture_bind_group(context: &Context) -> (BindGroupLayout, BindGroup)
                 label: Some("texture_bind_group_layout"),
             });
 
-    let texture_bind_group = context.device.create_bind_group(
-        &wgpu::BindGroupDescriptor {
+    let texture_bind_group = context
+        .device
+        .create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &texture_bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -156,11 +154,10 @@ pub fn get_texture_bind_group(context: &Context) -> (BindGroupLayout, BindGroup)
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: wgpu::BindingResource::Sampler(&texture.sampler),
-                }
+                },
             ],
             label: Some("diffuse_bind_group"),
-        }
-    );
+        });
 
     (texture_bind_group_layout, texture_bind_group)
 }

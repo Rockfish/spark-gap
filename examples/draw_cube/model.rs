@@ -1,8 +1,8 @@
-use wgpu::util::DeviceExt;
 use crate::context::Context;
 use crate::cube::Cube;
 use crate::texture;
 use crate::texture::{get_texture, get_texture_bind_group};
+use wgpu::util::DeviceExt;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -33,11 +33,11 @@ pub struct Model {
 
 impl Model {
     pub fn new(context: &Context) -> Self {
-
         let cube = Cube::new();
 
-        let vertex_buffer = context.device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
+        let vertex_buffer = context
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
                 contents: bytemuck::cast_slice(&cube.vertex_data),
                 usage: wgpu::BufferUsages::VERTEX,
@@ -59,10 +59,7 @@ impl Model {
             bind_group_layout,
         };
 
-        Model {
-            mesh,
-            material
-        }
+        Model { mesh, material }
     }
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {

@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.79"
 env_logger = "0.11.0"
-glam = "0.25.0"
+glam = { version = "0.25.0", features = ["bytemuck"] }
 gltf = "1.4.0"
 image = { version = "0.24.8", default-features = false, features = [
     "png",
@@ -24,6 +24,9 @@ winit = "0.29.10"
 log = "0.4.20"
 web-time = "1.0.0"
 bytemuck = { version = "1.14.3", features = [ "derive" ] }
+ahash = "0.8.7"
+hashbrown = "0.14.3"
+rand = "0.8.5"
 
 [dev-dependencies]
 pollster = "0.3.0"

@@ -28,3 +28,9 @@ impl FrameCounter {
         }
     }
 }
+
+impl Default for FrameCounter {
+    fn default() -> Self {
+        Self::new()
+    }
+}

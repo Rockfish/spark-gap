@@ -62,7 +62,8 @@ impl CameraHandler {
         let bind_group_layout =
             context
                 .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                .create_bind_group_layout(
+                    &wgpu::BindGroupLayoutDescriptor {
                     entries: &[wgpu::BindGroupLayoutEntry {
                         binding: 0,
                         visibility: wgpu::ShaderStages::VERTEX,

@@ -1,15 +1,13 @@
+mod camera;
 mod context;
 mod cube;
-mod texture;
 mod model;
-mod camera;
 mod render;
+mod texture;
 
-use std::sync::Arc;
-use winit::{
-    event_loop::EventLoop,
-};
 use crate::render::run;
+use std::sync::Arc;
+use winit::event_loop::EventLoop;
 
 pub fn main() {
     env_logger::init();
