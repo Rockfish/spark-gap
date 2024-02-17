@@ -119,6 +119,9 @@ impl NodeTransform {
     }
 }
 
+pub const MAX_BONES: usize = 100;
+pub const MAX_NODES: usize = 50;
+
 #[derive(Debug, Clone)]
 pub struct Animator {
     pub root_node: NodeData,
@@ -134,8 +137,10 @@ pub struct Animator {
 
     // pub final_bone_matrices: RefCell<Vec<Mat4>>,
     // pub final_node_matrices: RefCell<Vec<Mat4>>,
-    pub final_bone_matrices: RefCell<[Mat4; 100]>,
-    pub final_node_matrices: RefCell<[Mat4; 50]>,
+    // pub final_bone_matrices: RefCell<[Mat4; MAX_BONES]>,
+    // pub final_node_matrices: RefCell<[Mat4; MAX_NODES]>,
+    pub final_bone_matrices: RefCell<Box<[Mat4]>>,
+    pub final_node_matrices: RefCell<Box<[Mat4]>>,
 }
 
 impl Animator {
@@ -156,8 +161,8 @@ impl Animator {
         //     }
         // }
 
-        let final_bone_matrices = [Mat4::IDENTITY; 100];
-        let final_node_matrices = [Mat4::IDENTITY; 50];
+        let final_bone_matrices = [Mat4::IDENTITY; MAX_BONES];
+        let final_node_matrices = [Mat4::IDENTITY; MAX_NODES];
 
         let animation_clip = AnimationClip {
             start_tick: 0.0,
@@ -180,8 +185,10 @@ impl Animator {
             current_animation,
             transitions: vec![].into(),
             node_transforms: HashMap::new().into(),
-            final_bone_matrices: final_bone_matrices.into(),
-            final_node_matrices: final_node_matrices.into(),
+            // final_bone_matrices: final_bone_matrices.into(),
+            // final_node_matrices: final_node_matrices.into(),
+            final_bone_matrices: RefCell::new(Box::new(final_bone_matrices)),
+            final_node_matrices: RefCell::new(Box::new(final_node_matrices)),
         }
     }
 

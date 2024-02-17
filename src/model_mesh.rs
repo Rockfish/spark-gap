@@ -1,4 +1,4 @@
-use crate::texture::Texture;
+use crate::material::Material;
 use glam::u32;
 use glam::*;
 use log::debug;
@@ -69,7 +69,7 @@ pub struct ModelMesh {
     pub name: String,
     pub vertices: Vec<ModelVertex>,
     pub indices: Vec<u32>,
-    pub textures: Vec<Rc<Texture>>,
+    pub materials: Vec<Rc<Material>>,
 }
 
 impl ModelMesh {
@@ -78,14 +78,14 @@ impl ModelMesh {
         name: impl Into<String>,
         vertices: Vec<ModelVertex>,
         indices: Vec<u32>,
-        textures: Vec<Rc<Texture>>,
+        materials: Vec<Rc<Material>>,
     ) -> ModelMesh {
         let mut mesh = ModelMesh {
             id,
             name: name.into(),
             vertices,
             indices,
-            textures,
+            materials,
         };
         // mesh.setup_mesh();
         mesh

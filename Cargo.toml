@@ -46,3 +46,7 @@ path = "examples/draw_triangle/main.rs"
 [[example]]
 name = "draw_cube"
 path = "examples/draw_cube/main.rs"
+
+[[example]]
+name = "animation"
+path = "examples/animation/main.rs"

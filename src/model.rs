@@ -1,10 +1,12 @@
-use crate::animator::{AnimationClip, Animator, WeightedAnimation};
+use crate::animator::{AnimationClip, Animator, WeightedAnimation, MAX_BONES};
+use crate::context::Context;
 use crate::error::Error;
 use crate::error::Error::{MeshError, SceneError};
 use crate::hash_map::HashMap;
 use crate::model_animation::{BoneData, BoneName};
 use crate::model_mesh::{ModelMesh, ModelVertex};
-use crate::texture::Texture;
+use crate::material::Material;
+use crate::texture_config::{TextureConfig, TextureFilter, TextureType, TextureWrap};
 use crate::transform::Transform;
 use crate::utils::get_exists_filename;
 use glam::*;
@@ -16,10 +18,8 @@ use std::ops::Deref;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::Duration;
-use wgpu::{BindGroup, BindGroupLayout, Buffer};
 use wgpu::util::DeviceExt;
-use crate::context::Context;
-use crate::texture_config::{TextureConfig, TextureFilter, TextureType, TextureWrap};
+use wgpu::{BindGroup, BindGroupLayout, Buffer};
 
 // model data
 #[derive(Debug)]
@@ -34,24 +34,30 @@ pub struct Model {
 }
 
 impl Model {
-    // pub fn render(&self, shader: &Shader) {
-    //     let animator = self.animator.borrow();
-    //     let final_bones = animator.final_bone_matrices.borrow();
-    //     let final_nodes = animator.final_node_matrices.borrow();
-    //
-    //     for (i, bone_transform) in final_bones.iter().enumerate() {
-    //         shader.set_mat4(
-    //             format!("finalBonesMatrices[{}]", i).as_str(),
-    //             bone_transform,
-    //         );
-    //     }
-    //
-    //     for mesh in self.meshes.iter() {
-    //         shader.set_mat4("nodeTransform", &final_nodes[mesh.id as usize]);
-    //         mesh.render(shader);
-    //     }
-    // }
-    //
+    pub fn render(&self, context: &Context) {
+        let animator = self.animator.borrow();
+        let final_bones = animator.final_bone_matrices.borrow();
+        let final_nodes = animator.final_node_matrices.borrow();
+
+        context.queue.write_buffer(
+            &self.final_bones_matrices_buffer,
+            0,
+            bytemuck::cast_slice(final_bones.as_ref()),
+        );
+
+        for mesh in self.meshes.iter() {
+            let node_transform = &final_nodes[mesh.id as usize].to_cols_array();
+
+            context.queue.write_buffer(
+                &self.final_bones_matrices_buffer,
+                0,
+                bytemuck::cast_slice(node_transform),
+            );
+
+            // mesh.render(shader);
+        }
+    }
+
     // pub fn set_shader_bones_for_mesh(&self, shader: &Shader, mesh: &ModelMesh) {
     //     let animator = self.animator.borrow();
     //     let final_bones = animator.final_bone_matrices.borrow();
@@ -114,13 +120,9 @@ pub struct ModelBuilder {
     pub flip_v: bool,
     pub flip_h: bool,
     pub load_textures: bool,
-    pub textures_cache: RefCell<Vec<Rc<Texture>>>,
+    pub textures_cache: RefCell<Vec<Rc<Material>>>,
     added_textures: Vec<AddedTextures>,
     pub mesh_count: i32,
-    // pub final_bones_matrices: Option<Buffer>,
-    // pub node_transform: Option<Buffer>,
-    // pub bind_group: Option<BindGroup>,
-    // pub bind_group_layout: Option<BindGroupLayout>,
 }
 
 impl ModelBuilder {
@@ -141,10 +143,6 @@ impl ModelBuilder {
             load_textures: true,
             added_textures: vec![],
             mesh_count: 0,
-            // final_bones_matrices: None,
-            // node_transform: None,
-            // bind_group: None,
-            // bind_group_layout: None,
         }
     }
 
@@ -189,11 +187,16 @@ impl ModelBuilder {
 
         let bind_group_layout = Self::create_bind_group_layout(context);
 
-        let final_bones_matrices_buffer = Self::create_final_bones_buffer(context, &animator.final_bone_matrices);
+        let final_bones_matrices_buffer =
+            Self::create_final_bones_buffer(context, &animator.final_bone_matrices);
         let node_transform_buffer = Self::create_node_transform_buffer(context, &Mat4::IDENTITY);
 
         let bind_group = Self::create_bind_group(
-            context, &bind_group_layout, &final_bones_matrices_buffer, &node_transform_buffer);
+            context,
+            &bind_group_layout,
+            &final_bones_matrices_buffer,
+            &node_transform_buffer,
+        );
 
         let model = Model {
             name: Rc::from(self.name),
@@ -233,7 +236,12 @@ impl ModelBuilder {
     }
 
     #[allow(clippy::needless_range_loop)]
-    fn process_node(&mut self, context: &Context, node: &Rc<Node>, scene: &Scene) -> Result<(), Error> {
+    fn process_node(
+        &mut self,
+        context: &Context,
+        node: &Rc<Node>,
+        scene: &Scene,
+    ) -> Result<(), Error> {
         for mesh_id in &node.meshes {
             let scene_mesh = &scene.meshes[*mesh_id as usize];
             let mesh = self.process_mesh(context, scene_mesh, scene);
@@ -256,7 +264,7 @@ impl ModelBuilder {
     ) -> Result<ModelMesh, Error> {
         let mut vertices: Vec<ModelVertex> = vec![];
         let mut indices: Vec<u32> = vec![];
-        let mut textures: Vec<Rc<Texture>> = vec![];
+        let mut materials: Vec<Rc<Material>> = vec![];
 
         for i in 0..r_mesh.vertices.len() {
             let mut vertex = ModelVertex::new();
@@ -283,14 +291,18 @@ impl ModelBuilder {
             indices.extend(&face.0)
         }
 
-        let material = &scene.materials[r_mesh.material_index as usize];
+        let russimp_material = &scene.materials[r_mesh.material_index as usize];
 
         // debug!("material: {:#?}", material);
 
-        for (r_texture_type, r_texture) in material.textures.iter() {
+        for (r_texture_type, r_texture) in russimp_material.textures.iter() {
             let texture_type = TextureType::convert_from(r_texture_type);
-            match self.load_texture(context, &texture_type, r_texture.borrow().filename.as_str()) {
-                Ok(texture) => textures.push(texture),
+            match self.load_or_get_material(
+                context,
+                &texture_type,
+                r_texture.borrow().filename.as_str(),
+            ) {
+                Ok(material) => materials.push(material),
                 Err(e) => debug!("{:?}", e),
             }
         }
@@ -299,7 +311,7 @@ impl ModelBuilder {
 
         self.extract_bone_weights_for_vertices(&mut vertices, r_mesh);
 
-        let mesh = ModelMesh::new(self.mesh_count, &r_mesh.name, vertices, indices, textures);
+        let mesh = ModelMesh::new(self.mesh_count, &r_mesh.name, vertices, indices, materials);
         self.mesh_count += 1;
         Ok(mesh)
     }
@@ -344,7 +356,7 @@ impl ModelBuilder {
 
     fn add_textures(&mut self, context: &Context) -> Result<(), Error> {
         for added_texture in &self.added_textures {
-            let texture = self.load_texture(
+            let texture = self.load_or_get_material(
                 context,
                 &added_texture.texture_type,
                 added_texture.texture_filename.as_str(),
@@ -359,8 +371,8 @@ impl ModelBuilder {
                     .join(&added_texture.texture_filename)
                     .into_os_string();
 
-                if !model_mesh.textures.iter().any(|t| t.texture_path == path) {
-                    model_mesh.textures.push(texture);
+                if !model_mesh.materials.iter().any(|t| t.texture_path == path) {
+                    model_mesh.materials.push(texture);
                 }
             } else {
                 return Err(MeshError(format!(
@@ -372,13 +384,12 @@ impl ModelBuilder {
         Ok(())
     }
 
-    /// load or retrieve copy of texture
-    fn load_texture(
+    fn load_or_get_material(
         &self,
         context: &Context,
         texture_type: &TextureType,
         texture_filename: &str,
-    ) -> Result<Rc<Texture>, Error> {
+    ) -> Result<Rc<Material>, Error> {
         let filepath = get_exists_filename(&self.directory, texture_filename)?;
 
         let mut texture_cache = self.textures_cache.borrow_mut();
@@ -389,7 +400,7 @@ impl ModelBuilder {
 
         match cached_texture {
             None => {
-                let texture = Rc::new(Texture::new(
+                let texture = Rc::new(Material::new(
                     context,
                     &filepath,
                     &TextureConfig {
@@ -417,8 +428,9 @@ impl ModelBuilder {
     }
 
     fn create_bind_group_layout(context: &Context) -> BindGroupLayout {
-        context.device.create_bind_group_layout(
-            &wgpu::BindGroupLayoutDescriptor {
+        context
+            .device
+            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
                     // 0: final_bones_matrices
                     wgpu::BindGroupLayoutEntry {
@@ -447,25 +459,33 @@ impl ModelBuilder {
             })
     }
 
-    fn create_final_bones_buffer(context: &Context, data: &RefCell<[Mat4; 100]>) -> Buffer {
-        context.device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
+    // fn create_final_bones_buffer(context: &Context, data: &RefCell<[Mat4; MAX_BONES]>) -> Buffer {
+    fn create_final_bones_buffer(context: &Context, data: &RefCell<Box<[Mat4]>>) -> Buffer {
+        context
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("final bones matrices"),
-                contents: bytemuck::cast_slice(data.borrow().as_slice()),
+                contents: bytemuck::cast_slice(data.borrow().as_ref()),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             })
     }
 
     fn create_node_transform_buffer(context: &Context, data: &Mat4) -> Buffer {
-        context.device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
+        context
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("node transform"),
-                contents: bytemuck::cast_slice(&[data.to_cols_array()]),
+                contents: bytemuck::cast_slice(&data.to_cols_array()),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             })
     }
 
-    fn create_bind_group(context: &Context, bind_group_layout: &BindGroupLayout, final_bones: &Buffer, node_transform: &Buffer) -> BindGroup {
+    fn create_bind_group(
+        context: &Context,
+        bind_group_layout: &BindGroupLayout,
+        final_bones: &Buffer,
+        node_transform: &Buffer,
+    ) -> BindGroup {
         context
             .device
             .create_bind_group(&wgpu::BindGroupDescriptor {
@@ -483,6 +503,4 @@ impl ModelBuilder {
                 label: Some("model_bind_group"),
             })
     }
-
-
 }
