@@ -1,7 +1,8 @@
 use log::debug;
 use std::sync::Arc;
-use winit::event::WindowEvent;
+use wgpu::BindGroupLayout;
 use winit::window::Window;
+use crate::hash_map::HashMap;
 
 pub struct Context {
     pub window: Arc<Window>,
@@ -11,6 +12,7 @@ pub struct Context {
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
+    pub bind_layout_cache: HashMap<String, BindGroupLayout>,
 }
 
 impl Drop for Context {
@@ -84,6 +86,7 @@ impl Context {
             queue,
             config,
             size,
+            bind_layout_cache: HashMap::new(),
         }
     }
 

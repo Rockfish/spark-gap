@@ -10,20 +10,23 @@ struct VertexInput {
     @location(6) weights: vec4<f32>,
 }
 
-// camera
-@group(0) @binding(1) var<uniform> projection: mat4x4<f32>;
-@group(0) @binding(1) var<uniform> view: mat4x4<f32>;
+struct CameraUniform {
+   projection: mat4x4<f32>,
+   view: mat4x4<f32>,
+   position: vec3<f32>,
+}
 
-// model transform
+// camera
+@group(0) @binding(0) var<uniform> camera: CameraUniform;
+
+// model transforms
 @group(1) @binding(0) var<uniform> model_transform: mat4x4<f32>;
+@group(1) @binding(1) var<uniform> node_transform: mat4x4<f32>;
+@group(1) @binding(2) var<storage> bone_transforms: array<mat4x4<f32>>;
 
 // material information
 @group(2) @binding(0) var diffuse_texture: texture_2d<f32>;
 @group(2) @binding(1) var diffuse_sampler: sampler;
-
-// animation transforms
-@group(3) @binding(0) var<storage> bone_transforms: array<mat4x4<f32>>;
-@group(3) @binding(1) var<uniform> node_transform: mat4x4<f32>;
 
 
 // Vertex shader
@@ -38,7 +41,7 @@ fn vs_main(model: VertexInput) -> VertexOutput {
 
     var result: VertexOutput;
 
-    result.position = projection * view * model_transform * vec4<f32>(model.position, 1.0);
+    result.position = camera.projection * camera.view * model_transform * vec4<f32>(model.position, 1.0);
     result.tex_coords = model.tex_coords;
 
     return result;

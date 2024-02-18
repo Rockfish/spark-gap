@@ -3,16 +3,17 @@ use crate::context::Context;
 use wgpu::util::DeviceExt;
 use wgpu::{BindGroup, BindGroupLayout, Buffer};
 
+pub const CAMERA_BIND_GROUP_LAYOUT: &str = "camera_bind_group_layout";
+
 pub struct CameraHandler {
     pub camera_buffer: Buffer,
     pub bind_group: BindGroup,
-    pub bind_group_layout: BindGroupLayout,
 }
 
 impl CameraHandler {
-    pub fn new(context: &Context, camera: &CameraController) -> Self {
+    pub fn new(context: &mut Context, camera_controller: &CameraController) -> Self {
 
-        let camera_uniform = camera.get_camera_uniform();
+        let camera_uniform = camera_controller.get_camera_uniform();
 
         let camera_buffer = context
             .device
@@ -22,22 +23,13 @@ impl CameraHandler {
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
 
-        let bind_group_layout =
-            context
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                    label: Some("camera_bind_group_layout"),
-                });
+        if !context.bind_layout_cache.contains_key(CAMERA_BIND_GROUP_LAYOUT) {
+            let layout = create_camera_bind_group_layout(context);
+            context.bind_layout_cache.insert(String::from(CAMERA_BIND_GROUP_LAYOUT), layout);
+        }
+
+        let bind_group_layout = context.bind_layout_cache.get(CAMERA_BIND_GROUP_LAYOUT).unwrap();
+
 
         let bind_group = context
             .device
@@ -53,17 +45,33 @@ impl CameraHandler {
         Self {
             camera_buffer,
             bind_group,
-            bind_group_layout,
         }
     }
 
-    pub fn update_camera(&self, context: &Context, camera: &mut CameraController) {
-        // camera.update(context);
-        let camera_uniform = camera.get_camera_uniform();
+    pub fn update_camera(&self, context: &Context, camera_controller: &CameraController) {
+        let camera_uniform = camera_controller.get_camera_uniform();
         context.queue.write_buffer(
             &self.camera_buffer,
             0,
             bytemuck::cast_slice(&[camera_uniform]),
         );
     }
+}
+
+fn create_camera_bind_group_layout(context: &Context) -> BindGroupLayout {
+    context
+        .device
+        .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+            label: Some(CAMERA_BIND_GROUP_LAYOUT),
+        })
 }

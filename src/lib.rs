@@ -12,6 +12,7 @@ pub mod frame_counter;
 pub mod hash_map;
 pub mod material;
 pub mod model;
+pub mod model_builder;
 pub mod model_animation;
 pub mod model_mesh;
 pub mod node_animation;

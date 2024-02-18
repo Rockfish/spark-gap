@@ -4,10 +4,11 @@ use crate::error::Error::ImageError;
 use crate::texture_config::{TextureConfig, TextureFilter, TextureType, TextureWrap};
 use image::GenericImageView;
 use std::ffi::OsString;
-use std::fmt::Display;
 use std::path::PathBuf;
 use std::rc::Rc;
 use wgpu::{BindGroup, BindGroupLayout, Sampler, Texture, TextureView};
+
+pub const MATERIAL_BIND_GROUP_LAYOUT: &str = "material_bind_group_layout";
 
 #[derive(Debug, Clone)]
 pub struct Material {
@@ -17,14 +18,13 @@ pub struct Material {
     pub view: Rc<TextureView>,
     pub sampler: Rc<Sampler>,
     pub bind_group: Rc<BindGroup>,
-    pub bind_group_layout: Rc<BindGroupLayout>,
     pub width: u32,
     pub height: u32,
 }
 
 impl Material {
     pub fn new(
-        context: &Context,
+        context: &mut Context,
         file_path: impl Into<PathBuf>,
         texture_config: &TextureConfig,
     ) -> Result<Material, Error> {
@@ -34,11 +34,11 @@ impl Material {
 }
 
 pub fn load_texture(
-    context: &Context,
+    context: &mut Context,
     texture_path: &PathBuf,
     texture_config: &TextureConfig,
 ) -> Result<Material, Error> {
-    let img = match image::open(texture_path) {
+    let mut img = match image::open(texture_path) {
         Ok(img) => img,
         Err(e) => {
             return Err(ImageError(format!(
@@ -50,15 +50,12 @@ pub fn load_texture(
 
     let (width, height) = img.dimensions();
 
-    let img = if texture_config.flip_v {
-        img.flipv()
-    } else {
-        img
-    };
-    let img = if texture_config.flip_h {
-        img.fliph()
-    } else {
-        img
+    if texture_config.flip_v {
+        img = img.flipv()
+    }
+
+    if texture_config.flip_h {
+        img = img.fliph()
     };
 
     let img_rgba = img.to_rgba8();
@@ -121,7 +118,13 @@ pub fn load_texture(
         ..Default::default()
     });
 
-    let bind_group_layout = create_texture_bind_group_layout(context);
+    if !context.bind_layout_cache.contains_key(MATERIAL_BIND_GROUP_LAYOUT) {
+        let layout = create_material_bind_group_layout(context);
+        context.bind_layout_cache.insert(String::from(MATERIAL_BIND_GROUP_LAYOUT), layout);
+    }
+
+    let bind_group_layout = context.bind_layout_cache.get(MATERIAL_BIND_GROUP_LAYOUT).unwrap();
+
     let bind_group = create_texture_bind_group(context, &bind_group_layout, &texture_view, &texture_sampler);
 
     let texture = Material {
@@ -130,7 +133,6 @@ pub fn load_texture(
         texture: wgpu_texture.into(),
         view: texture_view.into(),
         sampler: texture_sampler.into(),
-        bind_group_layout: bind_group_layout.into(),
         bind_group: bind_group.into(),
         width,
         height,
@@ -139,7 +141,8 @@ pub fn load_texture(
     Ok(texture)
 }
 
-pub fn create_texture_bind_group_layout(context: &Context) -> BindGroupLayout {
+
+pub fn create_material_bind_group_layout(context: &Context) -> BindGroupLayout {
     context
         .device
         .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {

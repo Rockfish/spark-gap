@@ -1,7 +1,7 @@
 mod run_loop;
 mod model_render_old;
-mod render;
-mod model_handler;
+mod anim_render;
+mod world;
 
 use crate::run_loop::run;
 use std::sync::Arc;

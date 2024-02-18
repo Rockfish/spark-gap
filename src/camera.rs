@@ -23,7 +23,6 @@ pub struct CameraController {
     pub far: f32,
 }
 
-
 impl CameraController {
 
     pub fn new(aspect: f32, position: Vec3, yaw: f32, pitch: f32) -> CameraController {
