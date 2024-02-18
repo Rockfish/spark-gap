@@ -139,13 +139,13 @@ impl ModelMesh {
 
         let num_elements = vertices.len() as u32;
 
-        let vertex_data: Box<[ModelVertex]> = Box::from(vertices.as_slice());
+        // let vertex_data: Box<[ModelVertex]> = Box::from(vertices.as_slice());
 
         let vertex_buffer = context
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(&vertex_data),
+                contents: bytemuck::cast_slice(&vertices),
                 usage: wgpu::BufferUsages::VERTEX,
             });
 
@@ -153,7 +153,7 @@ impl ModelMesh {
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(&indices.as_slice()),
+                contents: bytemuck::cast_slice(&indices),
                 usage: wgpu::BufferUsages::INDEX,
             });
 

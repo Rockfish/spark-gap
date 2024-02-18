@@ -166,7 +166,7 @@ pub fn create_material_bind_group_layout(context: &Context) -> BindGroupLayout {
                     count: None,
                 },
             ],
-            label: Some("texture_bind_group_layout"),
+            label: Some(MATERIAL_BIND_GROUP_LAYOUT),
         })
 }
 
@@ -190,6 +190,6 @@ pub fn create_texture_bind_group(
                     resource: wgpu::BindingResource::Sampler(texture_sampler),
                 },
             ],
-            label: Some("texture_bind_group"),
+            label: Some("material_bind_group"),
         })
 }

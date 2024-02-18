@@ -1,6 +1,5 @@
 use crate::context::Context;
-use glam::{Mat4, Quat, Vec3};
-use std::f32::consts;
+use glam::{Mat4, Quat, Vec3, vec3};
 
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 #[repr(C)]
@@ -47,7 +46,7 @@ impl CameraController {
     }
 
     pub fn get_projection_matrix(&self) -> Mat4 {
-        Mat4::perspective_rh(consts::FRAC_PI_4, self.aspect_ratio, self.near, self.far)
+        Mat4::perspective_rh(self.fov, self.aspect_ratio, self.near, self.far)
     }
 
     pub fn get_view_matrix(&self) -> Mat4 {
@@ -65,7 +64,9 @@ impl CameraController {
     pub fn get_camera_uniform(&self) -> CameraUniform {
         CameraUniform {
             projection: self.get_projection_matrix(),
-            view: self.get_view_matrix(),
+            // view: self.get_view_matrix(),
+            // view: self.get_lookat_view_matrix(Vec3::ZERO),
+            view: self.get_lookat_view_matrix(vec3(0.0, -10.4, -400.0)),
             position: self.position,
             _padding: 0,
         }

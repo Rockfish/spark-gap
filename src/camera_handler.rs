@@ -30,7 +30,6 @@ impl CameraHandler {
 
         let bind_group_layout = context.bind_layout_cache.get(CAMERA_BIND_GROUP_LAYOUT).unwrap();
 
-
         let bind_group = context
             .device
             .create_bind_group(&wgpu::BindGroupDescriptor {

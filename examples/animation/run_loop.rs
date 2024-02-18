@@ -26,7 +26,7 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
     let size = context.window.inner_size();
     let aspect_ratio = size.width as f32 / size.height as f32;
 
-    let camera_controller = CameraController::new(aspect_ratio, vec3(0.0, 40.0, 120.0), -90.0, -20.0);
+    let camera_controller = CameraController::new(aspect_ratio, vec3(0.0, 40.0, 120.0), -90.0, 0.0);
     let camera_handler = CameraHandler::new(&mut context, &camera_controller);
 
     let model_path = "examples/animation/vampire/dancing_vampire.dae";
@@ -38,12 +38,20 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
 
     let anim_render = AnimRenderPass::new(&mut context);
 
+    let mut model_transform = Mat4::IDENTITY;
+    // model *= Mat4::from_rotation_x(-90.0f32.to_radians());
+    model_transform *= Mat4::from_translation(vec3(0.0, -10.4, -400.0));
+    // model *= Mat4::from_scale(vec3(0.3, 0.3, 0.3));
+    // let mut model = Mat4::from_translation(vec3(0.0, 5.0, 0.0));
+    model_transform *= Mat4::from_scale(vec3(15.0, 15.0, 15.0));
+    // model_transform *= Mat4::from_scale(vec3(1.0, 1.0, 1.0));
+
     let mut world = World {
         camera_controller,
         camera_handler,
         model,
         model_position,
-        model_transform: Mat4::IDENTITY,
+        model_transform,
         depth_texture_view,
         delta_time: 0.0,
         frame_time: 0.0,

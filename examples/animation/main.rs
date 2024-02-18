@@ -1,5 +1,4 @@
 mod run_loop;
-mod model_render_old;
 mod anim_render;
 mod world;
 
@@ -32,7 +31,7 @@ pub fn main() {
 
     let window = Arc::new(
         builder
-            .with_title("A triangle.")
+            .with_title("Animation Example")
             .with_inner_size(winit::dpi::LogicalSize::new(800.0, 800.0))
             .build(&event_loop)
             .unwrap(),

@@ -4,6 +4,7 @@ use spark_gap::context::Context;
 use spark_gap::material::MATERIAL_BIND_GROUP_LAYOUT;
 use spark_gap::model_builder::MODEL_BIND_GROUP_LAYOUT;
 use spark_gap::model_mesh::ModelVertex;
+use spark_gap::texture_config::TextureType;
 use crate::run_loop::BACKGROUND_COLOR;
 use crate::world::World;
 
@@ -81,14 +82,22 @@ impl AnimRenderPass {
                 let node_transform = &final_nodes[mesh.id as usize].to_cols_array();
 
                 context.queue.write_buffer(
-                    &model.final_bones_matrices_buffer,
+                    &model.node_transform_buffer,
                     0,
                     bytemuck::cast_slice(node_transform),
                 );
 
+                let diffuse_material = mesh.materials
+                    .iter().find(|m| m.texture_type == TextureType::Diffuse).unwrap();
+
+                // println!("material: {:?}", &diffuse_material);
+
                 render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                 render_pass.set_index_buffer(mesh.index_buffer.slice(..), IndexFormat::Uint32);
-                render_pass.draw(0..36, 0..1);
+
+                render_pass.set_bind_group(2, &diffuse_material.bind_group, &[]);
+
+                render_pass.draw(0..mesh.num_elements, 0..1);
             }
         }
 
@@ -146,7 +155,7 @@ pub fn create_render_pipeline(
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
+                cull_mode: None, // Some(wgpu::Face::Back),
                 unclipped_depth: false,
                 polygon_mode: wgpu::PolygonMode::Fill,
                 conservative: false,
