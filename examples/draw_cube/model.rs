@@ -35,13 +35,11 @@ impl Model {
     pub fn new(context: &Context) -> Self {
         let cube = Cube::new();
 
-        let vertex_buffer = context
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(&cube.vertex_data),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
+        let vertex_buffer = context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(&cube.vertex_data),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
 
         let mesh = Mesh {
             name: String::from("Cube"),

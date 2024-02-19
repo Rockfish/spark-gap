@@ -1,8 +1,8 @@
 use crate::cube::Cube;
 use crate::texture;
 use crate::texture::{get_texture, get_texture_bind_group};
-use wgpu::util::DeviceExt;
 use spark_gap::context::Context;
+use wgpu::util::DeviceExt;
 
 // #[repr(C)]
 // #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -33,16 +33,13 @@ pub struct Model {
 
 impl Model {
     pub fn new(context: &Context) -> Self {
-
         let cube = Cube::new();
 
-        let vertex_buffer = context
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(&cube.vertex_data),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
+        let vertex_buffer = context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(&cube.vertex_data),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
 
         let mesh = Mesh {
             name: String::from("Cube"),

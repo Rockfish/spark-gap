@@ -1,10 +1,10 @@
-use std::mem;
+use crate::context::Context;
 use crate::material::Material;
 use glam::u32;
 use glam::*;
+use std::mem;
 use std::rc::Rc;
 use wgpu::util::DeviceExt;
-use crate::context::Context;
 
 const MAX_BONE_INFLUENCE: usize = 4;
 const OFFSET_OF_NORMAL: usize = mem::offset_of!(ModelVertex, normal);
@@ -136,26 +136,21 @@ impl ModelMesh {
         indices: Vec<u32>,
         materials: Vec<Rc<Material>>,
     ) -> ModelMesh {
-
         let num_elements = vertices.len() as u32;
 
         // let vertex_data: Box<[ModelVertex]> = Box::from(vertices.as_slice());
 
-        let vertex_buffer = context
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(&vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
+        let vertex_buffer = context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(&vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
 
-        let index_buffer = context
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(&indices),
-                usage: wgpu::BufferUsages::INDEX,
-            });
+        let index_buffer = context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(&indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
 
         ModelMesh {
             id,

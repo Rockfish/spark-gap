@@ -65,10 +65,7 @@ impl Transform {
     /// all axes.
     #[inline]
     pub const fn from_scale(scale: Vec3) -> Self {
-        Transform {
-            scale,
-            ..Self::IDENTITY
-        }
+        Transform { scale, ..Self::IDENTITY }
     }
 
     /// Returns this [`Transform`] with a new rotation so that [`Transform::forward`]
@@ -309,10 +306,7 @@ impl Transform {
     pub fn look_to(&mut self, direction: Vec3, up: Vec3) {
         let back = -direction.try_normalize().unwrap_or(Vec3::NEG_Z);
         let up = up.try_normalize().unwrap_or(Vec3::Y);
-        let right = up
-            .cross(back)
-            .try_normalize()
-            .unwrap_or_else(|| up.any_orthonormal_vector());
+        let right = up.cross(back).try_normalize().unwrap_or_else(|| up.any_orthonormal_vector());
         let up = back.cross(right);
         self.rotation = Quat::from_mat3(&Mat3::from_cols(right, up, back));
     }

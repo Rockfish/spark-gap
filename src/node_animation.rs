@@ -32,10 +32,8 @@ pub struct NodeAnimation {
 
 impl NodeAnimation {
     pub fn new(name: &str, channel: &NodeAnim) -> Self {
-        let positions: Vec<KeyPosition> =
-            channel.position_keys.iter().map(|key| key.into()).collect();
-        let rotations: Vec<KeyRotation> =
-            channel.rotation_keys.iter().map(|key| key.into()).collect();
+        let positions: Vec<KeyPosition> = channel.position_keys.iter().map(|key| key.into()).collect();
+        let rotations: Vec<KeyRotation> = channel.rotation_keys.iter().map(|key| key.into()).collect();
         let scales: Vec<KeyScale> = channel.scaling_keys.iter().map(|key| key.into()).collect();
 
         let name = name.into();
@@ -106,16 +104,10 @@ impl NodeAnimation {
         let p0_index = self.get_scale_index(animation_time);
         let p1_index = p0_index + 1;
 
-        let scale_factor = self.get_scale_factor(
-            self.scales[p0_index].time_stamp,
-            self.scales[p1_index].time_stamp,
-            animation_time,
-        );
+        let scale_factor = self.get_scale_factor(self.scales[p0_index].time_stamp, self.scales[p1_index].time_stamp, animation_time);
 
         // final_scale
-        self.scales[p0_index]
-            .scale
-            .lerp(self.scales[p1_index].scale, scale_factor)
+        self.scales[p0_index].scale.lerp(self.scales[p1_index].scale, scale_factor)
     }
 
     fn get_position_index(&self, animation_time: f32) -> usize {
@@ -145,12 +137,7 @@ impl NodeAnimation {
         panic!("animation time out of bounds");
     }
 
-    fn get_scale_factor(
-        &self,
-        last_timestamp: f32,
-        next_timestamp: f32,
-        animation_time: f32,
-    ) -> f32 {
+    fn get_scale_factor(&self, last_timestamp: f32, next_timestamp: f32, animation_time: f32) -> f32 {
         let mid_way_length = animation_time - last_timestamp;
         let frames_diff = next_timestamp - last_timestamp;
         mid_way_length / frames_diff

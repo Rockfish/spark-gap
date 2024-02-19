@@ -1,8 +1,8 @@
+use crate::hash_map::HashMap;
 use log::debug;
 use std::sync::Arc;
 use wgpu::BindGroupLayout;
 use winit::window::Window;
-use crate::hash_map::HashMap;
 
 pub struct Context {
     pub window: Arc<Window>,
@@ -45,8 +45,7 @@ impl Context {
                 &wgpu::DeviceDescriptor {
                     label: None,
                     required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits::downlevel_webgl2_defaults()
-                        .using_resolution(adapter.limits()),
+                    required_limits: wgpu::Limits::downlevel_webgl2_defaults().using_resolution(adapter.limits()),
                 },
                 None,
             )

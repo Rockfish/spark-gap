@@ -3,9 +3,10 @@ use crate::context::Context;
 use crate::error::Error;
 use crate::error::Error::{MeshError, SceneError};
 use crate::hash_map::HashMap;
+use crate::material::Material;
+use crate::model::Model;
 use crate::model_animation::{BoneData, BoneName};
 use crate::model_mesh::{ModelMesh, ModelVertex};
-use crate::material::Material;
 use crate::texture_config::{TextureConfig, TextureFilter, TextureType, TextureWrap};
 use crate::transform::Transform;
 use crate::utils::get_exists_filename;
@@ -19,7 +20,6 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use wgpu::util::DeviceExt;
 use wgpu::{BindGroup, BindGroupLayout, Buffer};
-use crate::model::Model;
 
 pub const MODEL_BIND_GROUP_LAYOUT: &str = "model_bind_group_layout";
 
@@ -83,12 +83,7 @@ impl ModelBuilder {
         self
     }
 
-    pub fn add_texture(
-        mut self,
-        mesh_name: impl Into<String>,
-        texture_type: TextureType,
-        texture_filename: impl Into<String>,
-    ) -> Self {
+    pub fn add_texture(mut self, mesh_name: impl Into<String>, texture_type: TextureType, texture_filename: impl Into<String>) -> Self {
         let added_texture = AddedTextures {
             mesh_name: mesh_name.into(),
             texture_type,
@@ -164,12 +159,7 @@ impl ModelBuilder {
     }
 
     #[allow(clippy::needless_range_loop)]
-    fn process_node(
-        &mut self,
-        context: &mut Context,
-        node: &Rc<Node>,
-        scene: &Scene,
-    ) -> Result<(), Error> {
+    fn process_node(&mut self, context: &mut Context, node: &Rc<Node>, scene: &Scene) -> Result<(), Error> {
         for mesh_id in &node.meshes {
             let scene_mesh = &scene.meshes[*mesh_id as usize];
             let mesh = self.process_mesh(context, scene_mesh, scene);
@@ -184,12 +174,7 @@ impl ModelBuilder {
     }
 
     #[allow(clippy::needless_range_loop)]
-    fn process_mesh(
-        &mut self,
-        context: &mut Context,
-        r_mesh: &russimp::mesh::Mesh,
-        scene: &Scene,
-    ) -> Result<ModelMesh, Error> {
+    fn process_mesh(&mut self, context: &mut Context, r_mesh: &russimp::mesh::Mesh, scene: &Scene) -> Result<ModelMesh, Error> {
         let mut vertices: Vec<ModelVertex> = vec![];
         let mut indices: Vec<u32> = vec![];
         let mut materials: Vec<Rc<Material>> = vec![];
@@ -225,11 +210,7 @@ impl ModelBuilder {
 
         for (r_texture_type, r_texture) in russimp_material.textures.iter() {
             let texture_type = TextureType::convert_from(r_texture_type);
-            match self.load_or_get_material(
-                context,
-                &texture_type,
-                r_texture.borrow().filename.as_str(),
-            ) {
+            match self.load_or_get_material(context, &texture_type, r_texture.borrow().filename.as_str()) {
                 Ok(material) => materials.push(material),
                 Err(e) => debug!("{:?}", e),
             }
@@ -245,11 +226,7 @@ impl ModelBuilder {
         Ok(mesh)
     }
 
-    fn extract_bone_weights_for_vertices(
-        &mut self,
-        vertices: &mut [ModelVertex],
-        r_mesh: &russimp::mesh::Mesh,
-    ) {
+    fn extract_bone_weights_for_vertices(&mut self, vertices: &mut [ModelVertex], r_mesh: &russimp::mesh::Mesh) {
         let mut bone_data_map = self.bone_data_map.borrow_mut();
 
         for bone in &r_mesh.bones {
@@ -285,29 +262,16 @@ impl ModelBuilder {
 
     fn add_textures(&mut self, context: &mut Context) -> Result<(), Error> {
         for added_texture in &self.added_textures {
-            let texture = self.load_or_get_material(
-                context,
-                &added_texture.texture_type,
-                added_texture.texture_filename.as_str(),
-            )?;
-            let mesh = self
-                .meshes
-                .iter_mut()
-                .find(|mesh| mesh.name == added_texture.mesh_name);
+            let texture = self.load_or_get_material(context, &added_texture.texture_type, added_texture.texture_filename.as_str())?;
+            let mesh = self.meshes.iter_mut().find(|mesh| mesh.name == added_texture.mesh_name);
             if let Some(model_mesh) = mesh {
-                let path = self
-                    .directory
-                    .join(&added_texture.texture_filename)
-                    .into_os_string();
+                let path = self.directory.join(&added_texture.texture_filename).into_os_string();
 
                 if !model_mesh.materials.iter().any(|t| t.texture_path == path) {
                     model_mesh.materials.push(texture);
                 }
             } else {
-                return Err(MeshError(format!(
-                    "add_texture mesh: {} not found",
-                    &added_texture.mesh_name
-                )));
+                return Err(MeshError(format!("add_texture mesh: {} not found", &added_texture.mesh_name)));
             }
         }
         Ok(())
@@ -323,9 +287,7 @@ impl ModelBuilder {
 
         let mut texture_cache = self.textures_cache.borrow_mut();
 
-        let cached_texture = texture_cache
-            .iter()
-            .find(|t| t.texture_path == filepath.clone().into_os_string());
+        let cached_texture = texture_cache.iter().find(|t| t.texture_path == filepath.clone().into_os_string());
 
         match cached_texture {
             None => {
@@ -357,66 +319,60 @@ impl ModelBuilder {
     }
 
     fn create_transform_buffer(context: &Context, label: &str, data: &Mat4) -> Buffer {
-        context
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some(label),
-                contents: bytemuck::cast_slice(&data.to_cols_array()),
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            })
+        context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some(label),
+            contents: bytemuck::cast_slice(&data.to_cols_array()),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        })
     }
 
     fn create_final_bones_buffer(context: &Context, data: &RefCell<Box<[Mat4]>>) -> Buffer {
-        context
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("final bones matrices"),
-                contents: bytemuck::cast_slice(data.borrow().as_ref()),
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            })
+        context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("final bones matrices"),
+            contents: bytemuck::cast_slice(data.borrow().as_ref()),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        })
     }
 
     fn create_bind_group_layout(context: &Context) -> BindGroupLayout {
-        context
-            .device
-            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[
-                    // 0: model transform
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
+        context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[
+                // 0: model transform
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
                     },
-                    // 1: node_transform
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
+                    count: None,
+                },
+                // 1: node_transform
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
                     },
-                    // 2: final_bones_matrices
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 2,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: wgpu::BufferSize::new((MAX_BONES * 16) as _),
-                        },
-                        count: None,
+                    count: None,
+                },
+                // 2: final_bones_matrices
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: wgpu::BufferSize::new((MAX_BONES * 16) as _),
                     },
-                ],
-                label: Some("model bind group layout"),
-            })
+                    count: None,
+                },
+            ],
+            label: Some("model bind group layout"),
+        })
     }
 
     fn create_bind_group(
@@ -426,25 +382,23 @@ impl ModelBuilder {
         node_transform: &Buffer,
         final_bones: &Buffer,
     ) -> BindGroup {
-        context
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                layout: bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: model_transform.as_entire_binding(),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: node_transform.as_entire_binding(),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 2,
-                        resource: final_bones.as_entire_binding(),
-                    },
-                ],
-                label: Some("model bind group"),
-            })
+        context.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: model_transform.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: node_transform.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: final_bones.as_entire_binding(),
+                },
+            ],
+            label: Some("model bind group"),
+        })
     }
 }

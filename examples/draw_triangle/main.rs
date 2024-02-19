@@ -21,11 +21,7 @@ async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
 
     event_loop
         .run(move |event, target| {
-            if let Event::WindowEvent {
-                window_id: _,
-                event,
-            } = event
-            {
+            if let Event::WindowEvent { window_id: _, event } = event {
                 match event {
                     WindowEvent::Resized(new_size) => {
                         context.resize(new_size);

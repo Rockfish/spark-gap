@@ -60,10 +60,7 @@ impl ModelAnimation {
         let duration = scene.animations[0].duration as f32;
         let ticks_per_second = scene.animations[0].ticks_per_second as f32;
 
-        debug!(
-            "animation - duration: {}   ticks_per_second: {}",
-            &duration, &ticks_per_second
-        );
+        debug!("animation - duration: {}   ticks_per_second: {}", &duration, &ticks_per_second);
 
         // debug!("root_node: {:#?}", &root_node);
         // debug!("bone_data_map: {:#?}", &model.bone_data_map.borrow());

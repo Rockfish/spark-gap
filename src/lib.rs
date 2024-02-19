@@ -5,15 +5,15 @@ use std::os::raw;
 
 pub mod animator;
 pub mod camera;
-pub mod camera_handler;
 pub mod context;
 pub mod error;
 pub mod frame_counter;
 pub mod hash_map;
+pub mod input;
 pub mod material;
 pub mod model;
-pub mod model_builder;
 pub mod model_animation;
+pub mod model_builder;
 pub mod model_mesh;
 pub mod node_animation;
 pub mod texture_config;

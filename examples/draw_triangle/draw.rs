@@ -4,44 +4,38 @@ use wgpu::RenderPipeline;
 
 pub fn create_render_pipeline(context: &Context) -> RenderPipeline {
     // Load the shaders from disk
-    let shader = context
-        .device
-        .create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: None,
-            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("shader.wgsl"))),
-        });
+    let shader = context.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: None,
+        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("shader.wgsl"))),
+    });
 
-    let pipeline_layout = context
-        .device
-        .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: None,
-            bind_group_layouts: &[],
-            push_constant_ranges: &[],
-        });
+    let pipeline_layout = context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: None,
+        bind_group_layouts: &[],
+        push_constant_ranges: &[],
+    });
 
     let swapchain_capabilities = context.surface.get_capabilities(&context.adapter);
     let swapchain_format = swapchain_capabilities.formats[0];
 
-    let render_pipeline = context
-        .device
-        .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: None,
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: "vs_main",
-                buffers: &[],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: "fs_main",
-                targets: &[Some(swapchain_format.into())],
-            }),
-            primitive: wgpu::PrimitiveState::default(),
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
-            multiview: None,
-        });
+    let render_pipeline = context.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: None,
+        layout: Some(&pipeline_layout),
+        vertex: wgpu::VertexState {
+            module: &shader,
+            entry_point: "vs_main",
+            buffers: &[],
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &shader,
+            entry_point: "fs_main",
+            targets: &[Some(swapchain_format.into())],
+        }),
+        primitive: wgpu::PrimitiveState::default(),
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState::default(),
+        multiview: None,
+    });
 
     render_pipeline
 }
@@ -52,9 +46,7 @@ pub fn draw(context: &Context, render_pipeline: &RenderPipeline) {
         .get_current_texture()
         .expect("Failed to acquire next swap chain texture");
 
-    let view = frame
-        .texture
-        .create_view(&wgpu::TextureViewDescriptor::default());
+    let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
     let mut encoder = context
         .device

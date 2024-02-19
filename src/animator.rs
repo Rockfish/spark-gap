@@ -45,13 +45,7 @@ pub struct WeightedAnimation {
 }
 
 impl WeightedAnimation {
-    pub fn new(
-        weight: f32,
-        start_tick: f32,
-        end_tick: f32,
-        offset: f32,
-        optional_start: f32,
-    ) -> Self {
+    pub fn new(weight: f32, start_tick: f32, end_tick: f32, offset: f32, optional_start: f32) -> Self {
         WeightedAnimation {
             weight,
             start_tick,
@@ -201,11 +195,7 @@ impl Animator {
         }
     }
 
-    pub fn play_weight_animations(
-        &mut self,
-        weighted_animation: &[WeightedAnimation],
-        frame_time: f32,
-    ) {
+    pub fn play_weight_animations(&mut self, weighted_animation: &[WeightedAnimation], frame_time: f32) {
         {
             let mut node_map = self.node_transforms.borrow_mut();
             let node_animations = self.model_animation.node_animations.borrow();
@@ -223,20 +213,15 @@ impl Animator {
                 let tick_range = weighted.end_tick - weighted.start_tick;
 
                 let mut target_anim_ticks = if weighted.optional_start > 0.0 {
-                    let tick = (frame_time - weighted.optional_start)
-                        * self.model_animation.ticks_per_second
-                        + weighted.offset;
+                    let tick = (frame_time - weighted.optional_start) * self.model_animation.ticks_per_second + weighted.offset;
                     min(tick, tick_range)
                 } else {
-                    (frame_time * self.model_animation.ticks_per_second + weighted.offset)
-                        % tick_range
+                    (frame_time * self.model_animation.ticks_per_second + weighted.offset) % tick_range
                 };
 
                 target_anim_ticks += weighted.start_tick;
 
-                if target_anim_ticks < (weighted.start_tick - 0.01)
-                    || target_anim_ticks > (weighted.end_tick + 0.01)
-                {
+                if target_anim_ticks < (weighted.start_tick - 0.01) || target_anim_ticks > (weighted.end_tick + 0.01) {
                     panic!("target_anim_ticks out of range: {}", target_anim_ticks);
                 }
 
@@ -254,11 +239,7 @@ impl Animator {
         self.update_final_transforms();
     }
 
-    pub fn play_clip_with_transition(
-        &mut self,
-        clip: &Rc<AnimationClip>,
-        transition_duration: Duration,
-    ) {
+    pub fn play_clip_with_transition(&mut self, clip: &Rc<AnimationClip>, transition_duration: Duration) {
         let mut animation = PlayingAnimation {
             animation_clip: clip.clone(),
             current_tick: -1.0,
@@ -332,10 +313,7 @@ impl Animator {
         for (node_name, node_transform) in self.node_transforms.borrow_mut().iter() {
             if let Some(bone_data) = bone_data_map.get(node_name.deref()) {
                 let index = bone_data.bone_index as usize;
-                let transform_matrix = node_transform
-                    .transform
-                    .mul_transform(bone_data.offset_transform)
-                    .compute_matrix();
+                let transform_matrix = node_transform.transform.mul_transform(bone_data.offset_transform).compute_matrix();
                 final_bones[index] = transform_matrix;
             }
 
@@ -372,24 +350,10 @@ pub fn calculate_transform_maps(
     current_tick: f32,
     weight: f32,
 ) {
-    let global_transformation = calculate_transform(
-        node_data,
-        node_animations,
-        node_map,
-        parent_transform,
-        current_tick,
-        weight,
-    );
+    let global_transformation = calculate_transform(node_data, node_animations, node_map, parent_transform, current_tick, weight);
 
     for child_node in node_data.children.iter() {
-        calculate_transform_maps(
-            child_node,
-            node_animations,
-            node_map,
-            global_transformation,
-            current_tick,
-            weight,
-        );
+        calculate_transform_maps(child_node, node_animations, node_map, global_transformation, current_tick, weight);
     }
 }
 
@@ -401,9 +365,7 @@ fn calculate_transform(
     current_tick: f32,
     weight: f32,
 ) -> Transform {
-    let some_node_animation = node_animations
-        .iter()
-        .find(|node_anim| node_anim.name == node_data.name);
+    let some_node_animation = node_animations.iter().find(|node_anim| node_anim.name == node_data.name);
 
     let global_transform = match some_node_animation {
         Some(node_animation) => {

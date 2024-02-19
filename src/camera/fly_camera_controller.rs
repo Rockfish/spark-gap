@@ -1,17 +1,9 @@
+use crate::camera::camera_handler::CameraUniform;
 use crate::context::Context;
 use glam::{Mat4, Quat, Vec3};
 
-#[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-#[repr(C)]
-pub struct CameraUniform {
-    pub projection: Mat4,
-    pub view: Mat4,
-    pub position: Vec3,
-    pub _padding: u32,
-}
-
 #[derive(Debug, Clone, Copy)]
-pub struct CameraController {
+pub struct FlyCameraController {
     pub speed: f32,
     pub sensitivity: f32,
     pub position: Vec3,
@@ -22,10 +14,8 @@ pub struct CameraController {
     pub far: f32,
 }
 
-impl CameraController {
-
-    pub fn new(aspect: f32, position: Vec3, yaw: f32, pitch: f32) -> CameraController {
-
+impl FlyCameraController {
+    pub fn new(aspect: f32, position: Vec3, yaw: f32, pitch: f32) -> FlyCameraController {
         Self {
             speed: 10.0,
             sensitivity: 0.1,
@@ -40,8 +30,8 @@ impl CameraController {
 
     fn get_rotation(yaw: f32, pitch: f32) -> Quat {
         let up = Vec3::Y; // yaw_axis
-        let right = Vec3::X;  // pitch_axis
-        let rotation = Quat::from_axis_angle(up, yaw) * Quat::from_axis_angle(right, pitch);
+        let right = Vec3::X; // pitch_axis
+        let rotation = Quat::from_axis_angle(up, yaw.to_radians()) * Quat::from_axis_angle(right, pitch.to_radians());
         rotation.normalize()
     }
 
@@ -57,15 +47,10 @@ impl CameraController {
         Mat4::look_at_rh(self.position, target, Vec3::Y)
     }
 
-    // pub fn get_camera_uniform(&self) -> [f32; 16] {
-    //     self.perspective_view.to_cols_array()
-    // }
-
     pub fn get_camera_uniform(&self) -> CameraUniform {
         CameraUniform {
             projection: self.get_projection_matrix(),
             view: self.get_view_matrix(),
-            // view: self.get_lookat_view_matrix(Vec3::ZERO),
             position: self.position,
             _padding: 0,
         }

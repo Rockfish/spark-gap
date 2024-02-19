@@ -97,10 +97,7 @@ pub fn get_exists_filename(directory: &Path, filename: &str) -> Result<PathBuf, 
     if path.is_file() {
         return Ok(path);
     }
-    Err(PathError(format!(
-        "filename not found: {:?}",
-        filename.to_os_string()
-    )))
+    Err(PathError(format!("filename not found: {:?}", filename.to_os_string())))
 }
 
 #[cfg(test)]

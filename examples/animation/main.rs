@@ -1,5 +1,5 @@
-mod run_loop;
 mod anim_render;
+mod run_loop;
 mod world;
 
 use crate::run_loop::run;

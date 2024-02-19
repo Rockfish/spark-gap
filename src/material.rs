@@ -23,29 +23,16 @@ pub struct Material {
 }
 
 impl Material {
-    pub fn new(
-        context: &mut Context,
-        file_path: impl Into<PathBuf>,
-        texture_config: &TextureConfig,
-    ) -> Result<Material, Error> {
+    pub fn new(context: &mut Context, file_path: impl Into<PathBuf>, texture_config: &TextureConfig) -> Result<Material, Error> {
         let file_path = file_path.into();
         load_texture(context, &file_path, texture_config)
     }
 }
 
-pub fn load_texture(
-    context: &mut Context,
-    texture_path: &PathBuf,
-    texture_config: &TextureConfig,
-) -> Result<Material, Error> {
+pub fn load_texture(context: &mut Context, texture_path: &PathBuf, texture_config: &TextureConfig) -> Result<Material, Error> {
     let mut img = match image::open(texture_path) {
         Ok(img) => img,
-        Err(e) => {
-            return Err(ImageError(format!(
-                "image error: {:?}  file: {:?}",
-                e, texture_path
-            )))
-        }
+        Err(e) => return Err(ImageError(format!("image error: {:?}  file: {:?}", e, texture_path))),
     };
 
     let (width, height) = img.dimensions();
@@ -141,33 +128,30 @@ pub fn load_texture(
     Ok(texture)
 }
 
-
 pub fn create_material_bind_group_layout(context: &Context) -> BindGroupLayout {
-    context
-        .device
-        .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[
-                // 0: texture
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Texture {
-                        multisampled: false,
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                    },
-                    count: None,
+    context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        entries: &[
+            // 0: texture
+            wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    multisampled: false,
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
                 },
-                // 1: sampler
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None,
-                },
-            ],
-            label: Some(MATERIAL_BIND_GROUP_LAYOUT),
-        })
+                count: None,
+            },
+            // 1: sampler
+            wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                count: None,
+            },
+        ],
+        label: Some(MATERIAL_BIND_GROUP_LAYOUT),
+    })
 }
 
 pub fn create_texture_bind_group(
@@ -176,20 +160,18 @@ pub fn create_texture_bind_group(
     texture_view: &TextureView,
     texture_sampler: &Sampler,
 ) -> BindGroup {
-    context
-        .device
-        .create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(texture_view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(texture_sampler),
-                },
-            ],
-            label: Some("material_bind_group"),
-        })
+    context.device.create_bind_group(&wgpu::BindGroupDescriptor {
+        layout: bind_group_layout,
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(texture_view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(texture_sampler),
+            },
+        ],
+        label: Some("material_bind_group"),
+    })
 }

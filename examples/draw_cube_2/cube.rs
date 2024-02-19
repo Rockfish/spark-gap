@@ -13,7 +13,6 @@ impl Cube {
         let mut vertices: Vec<ModelVertex> = vec![];
 
         for [x, y, z, u, v] in vertex_data.iter().array_chunks() {
-
             let vertex = ModelVertex {
                 position: vec3(*x, *y, *z),
                 normal: Default::default(),
@@ -35,6 +34,7 @@ impl Cube {
         }
     }
 
+    // todo: fix faces
     pub(crate) fn get_cube_vertices() -> [f32; 180] {
         #[rustfmt::skip]
         let cube_vertices: [f32; 180] = [

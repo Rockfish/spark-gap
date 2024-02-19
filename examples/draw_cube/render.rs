@@ -28,19 +28,11 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
 
     let mut depth_texture = create_depth_texture(&context);
 
-    let render_pipeline = create_render_pipeline(
-        &context,
-        &model.material.bind_group_layout,
-        &camera_handler.bind_group_layout,
-    );
+    let render_pipeline = create_render_pipeline(&context, &model.material.bind_group_layout, &camera_handler.bind_group_layout);
 
     event_loop
         .run(move |event, target| {
-            if let Event::WindowEvent {
-                window_id: _,
-                event,
-            } = event
-            {
+            if let Event::WindowEvent { window_id: _, event } = event {
                 match event {
                     WindowEvent::Resized(new_size) => {
                         context.resize(new_size);
@@ -51,13 +43,7 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
                     WindowEvent::RedrawRequested => {
                         frame_counter.update();
 
-                        draw(
-                            &context,
-                            &render_pipeline,
-                            &camera_handler,
-                            &model,
-                            &depth_texture,
-                        );
+                        draw(&context, &render_pipeline, &camera_handler, &model, &depth_texture);
 
                         context.window.request_redraw();
                     }
@@ -76,21 +62,13 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
         .unwrap();
 }
 
-pub fn draw(
-    context: &Context,
-    render_pipeline: &RenderPipeline,
-    camera_handler: &CameraHandler,
-    model: &Model,
-    depth_texture: &Texture,
-) {
+pub fn draw(context: &Context, render_pipeline: &RenderPipeline, camera_handler: &CameraHandler, model: &Model, depth_texture: &Texture) {
     let frame = context
         .surface
         .get_current_texture()
         .expect("Failed to acquire next swap chain texture");
 
-    let view = frame
-        .texture
-        .create_view(&wgpu::TextureViewDescriptor::default());
+    let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
     let mut encoder = context
         .device
@@ -142,58 +120,52 @@ pub fn create_render_pipeline(
     texture_bind_group_layout: &BindGroupLayout,
     camera_bind_group_layout: &BindGroupLayout,
 ) -> RenderPipeline {
-    let pipeline_layout = context
-        .device
-        .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[camera_bind_group_layout, texture_bind_group_layout],
-            push_constant_ranges: &[],
-        });
+    let pipeline_layout = context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("Render Pipeline Layout"),
+        bind_group_layouts: &[camera_bind_group_layout, texture_bind_group_layout],
+        push_constant_ranges: &[],
+    });
 
-    let shader = context
-        .device
-        .create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("shader.wgsl"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
-        });
+    let shader = context.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: Some("shader.wgsl"),
+        source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+    });
 
     let swapchain_capabilities = context.surface.get_capabilities(&context.adapter);
     let swapchain_format = swapchain_capabilities.formats[0];
 
-    let render_pipeline = context
-        .device
-        .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: "vs_main",
-                buffers: &[Model::desc()],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: "fs_main",
-                targets: &[Some(swapchain_format.into())],
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                unclipped_depth: false,
-                polygon_mode: wgpu::PolygonMode::Fill,
-                conservative: false,
-            },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
-                stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState::default(),
-            }),
-            multisample: wgpu::MultisampleState::default(),
-            multiview: None,
-        });
+    let render_pipeline = context.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("Render Pipeline"),
+        layout: Some(&pipeline_layout),
+        vertex: wgpu::VertexState {
+            module: &shader,
+            entry_point: "vs_main",
+            buffers: &[Model::desc()],
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &shader,
+            entry_point: "fs_main",
+            targets: &[Some(swapchain_format.into())],
+        }),
+        primitive: wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: wgpu::FrontFace::Ccw,
+            cull_mode: Some(wgpu::Face::Back),
+            unclipped_depth: false,
+            polygon_mode: wgpu::PolygonMode::Fill,
+            conservative: false,
+        },
+        depth_stencil: Some(wgpu::DepthStencilState {
+            format: wgpu::TextureFormat::Depth32Float,
+            depth_write_enabled: true,
+            depth_compare: wgpu::CompareFunction::Less,
+            stencil: wgpu::StencilState::default(),
+            bias: wgpu::DepthBiasState::default(),
+        }),
+        multisample: wgpu::MultisampleState::default(),
+        multiview: None,
+    });
 
     render_pipeline
 }
