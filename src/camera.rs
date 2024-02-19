@@ -25,6 +25,9 @@ pub struct CameraController {
 impl CameraController {
 
     pub fn new(aspect: f32, position: Vec3, yaw: f32, pitch: f32) -> CameraController {
+
+        println!("position: {:?}", &position);
+
         Self {
             speed: 10.0,
             sensitivity: 0.1,
@@ -33,15 +36,14 @@ impl CameraController {
             fov: 60.0f32.to_radians(),
             aspect_ratio: aspect,
             near: 0.1,
-            far: 100.0,
+            far: 1000.0, //100.0,
         }
     }
 
     fn get_rotation(yaw: f32, pitch: f32) -> Quat {
         let up = Vec3::Y; // yaw_axis
         let right = Vec3::X;  // pitch_axis
-        let rotation = Quat::from_axis_angle(up, yaw)
-            * Quat::from_axis_angle(right, pitch);
+        let rotation = Quat::from_axis_angle(up, yaw) * Quat::from_axis_angle(right, pitch);
         rotation.normalize()
     }
 
@@ -54,7 +56,7 @@ impl CameraController {
     }
 
     pub fn get_lookat_view_matrix(&self, target: Vec3) -> Mat4 {
-        Mat4::look_at_rh(self.position, target, Vec3::Z)
+        Mat4::look_at_rh(self.position, target, Vec3::Y)
     }
 
     // pub fn get_camera_uniform(&self) -> [f32; 16] {
@@ -64,9 +66,10 @@ impl CameraController {
     pub fn get_camera_uniform(&self) -> CameraUniform {
         CameraUniform {
             projection: self.get_projection_matrix(),
-            // view: self.get_view_matrix(),
+            view: self.get_view_matrix(),
             // view: self.get_lookat_view_matrix(Vec3::ZERO),
-            view: self.get_lookat_view_matrix(vec3(0.0, -10.4, -400.0)),
+            // view:  Mat4::look_at_rh(Vec3::new(1.5, 10.0, 200.0), Vec3::ZERO, Vec3::Y),
+            // view: self.get_lookat_view_matrix(vec3(0.0, -10.4, -400.0)),
             position: self.position,
             _padding: 0,
         }
