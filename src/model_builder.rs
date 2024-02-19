@@ -1,4 +1,4 @@
-use crate::animator::Animator;
+use crate::animator::{Animator, MAX_BONES};
 use crate::context::Context;
 use crate::error::Error;
 use crate::error::Error::{MeshError, SceneError};
@@ -14,6 +14,7 @@ use log::debug;
 use russimp::node::Node;
 use russimp::scene::{PostProcess, Scene};
 use std::cell::RefCell;
+use std::num::NonZeroU32;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -372,7 +373,7 @@ impl ModelBuilder {
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("final bones matrices"),
                 contents: bytemuck::cast_slice(data.borrow().as_ref()),
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             })
     }
 
@@ -408,11 +409,11 @@ impl ModelBuilder {
                         binding: 2,
                         visibility: wgpu::ShaderStages::VERTEX,
                         ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
                             has_dynamic_offset: false,
                             min_binding_size: None,
                         },
-                        count: None,
+                        count: NonZeroU32::new(MAX_BONES as u32),
                     },
                 ],
                 label: Some("model bind group layout"),

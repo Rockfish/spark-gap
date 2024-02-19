@@ -12,6 +12,7 @@ pub struct World {
     pub model_position: Vec3,
     pub model_transform: Mat4,
     pub depth_texture_view: TextureView,
+    pub run: bool,
     pub delta_time: f32,
     pub frame_time: f32,
     pub first_mouse: bool,

@@ -1,5 +1,5 @@
 use crate::context::Context;
-use glam::{Mat4, Quat, Vec3, vec3};
+use glam::{Mat4, Quat, Vec3};
 
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 #[repr(C)]

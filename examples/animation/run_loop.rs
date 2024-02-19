@@ -1,5 +1,6 @@
 use spark_gap::frame_counter::FrameCounter;
 use std::sync::Arc;
+use std::time::Instant;
 use glam::{Mat4, Vec3, vec3};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::EventLoop;
@@ -26,7 +27,7 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
     let size = context.window.inner_size();
     let aspect_ratio = size.width as f32 / size.height as f32;
 
-    let camera_position = vec3(0.0, 60.0, 220.0);
+    let camera_position = vec3(0.0, 100.0, 300.0);
     let camera_controller = CameraController::new(aspect_ratio, camera_position, 0.0, 0.0);
     let camera_handler = CameraHandler::new(&mut context, &camera_controller);
 
@@ -41,11 +42,11 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
 
     let mut model_transform = Mat4::IDENTITY;
     // model *= Mat4::from_rotation_x(-90.0f32.to_radians());
-    model_transform *= Mat4::from_translation(vec3(0.0, -10.4, -400.0));
+    // model_transform *= Mat4::from_translation(vec3(0.0, -10.4, -200.0));
     // model *= Mat4::from_scale(vec3(0.3, 0.3, 0.3));
     // let mut model = Mat4::from_translation(vec3(0.0, 5.0, 0.0));
     // model_transform *= Mat4::from_scale(vec3(15.0, 15.0, 15.0));
-    model_transform *= Mat4::from_scale(vec3(1.0, 1.0, 1.0));
+    // model_transform *= Mat4::from_scale(vec3(1.0, 1.0, 1.0));
 
     let mut world = World {
         camera_controller,
@@ -54,12 +55,15 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
         model_position,
         model_transform,
         depth_texture_view,
+        run: true,
         delta_time: 0.0,
         frame_time: 0.0,
         first_mouse: false,
         mouse_x: 0.0,
         mouse_y: 0.0,
     };
+
+    let start_instant = Instant::now();
 
     event_loop
         .run(move |event, target| {
@@ -77,6 +81,19 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
                     }
                     WindowEvent::RedrawRequested => {
                         frame_counter.update();
+
+                        let current_time = Instant::now().duration_since(start_instant).as_secs_f32();
+
+                        if world.run {
+                            world.delta_time = current_time - world.frame_time;
+                        } else {
+                            world.delta_time = 0.0;
+                        }
+                        world.frame_time = current_time;
+
+                        // println!("current_time: {:?}  delta_time: {:?}", world.frame_time, world.delta_time);
+
+                        world.model.update_animation(&context, world.delta_time);
 
                         anim_render.render(&context, &world);
 

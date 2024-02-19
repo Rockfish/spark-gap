@@ -41,10 +41,42 @@ fn vs_main(model: VertexInput) -> VertexOutput {
 
     var result: VertexOutput;
 
-    result.position = camera.projection * camera.view * model_transform * vec4<f32>(model.position, 1.0);
+    var total_position = get_animated_position(model);
+
+    result.position = camera.projection * camera.view * model_transform * total_position;
     result.tex_coords = model.tex_coords;
 
     return result;
+}
+
+fn get_animated_position(model: VertexInput) -> vec4<f32> {
+
+  var initial_postion = vec4<f32>(0.0);
+  var totalPosition = initial_postion;
+  var localNormal = vec3<f32>(0.0);
+
+  for (var i = 0; i < 4; i++)
+  {
+    if (model.bone_ids[i] == -1) {
+      continue;
+    }
+
+    if (model.bone_ids[i] >= 4) {
+      totalPosition = vec4<f32>(model.position, 1.0f);
+      break;
+    }
+
+    var localPosition = bone_transforms[model.bone_ids[i]] * vec4<f32>(model.position, 1.0f);
+    totalPosition += localPosition * model.weights[i];
+
+//    localNormal = mat3(bone_transforms[bone_ids[i]]) * norm;
+  }
+
+  if (all(totalPosition == initial_postion)) {
+    totalPosition = node_transform * vec4<f32>(model.position, 1.0f);
+  }
+
+  return totalPosition;
 }
 
 // Fragment shader
@@ -54,4 +86,3 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var color = textureSample(diffuse_texture, diffuse_sampler, in.tex_coords);
     return color;
 }
-

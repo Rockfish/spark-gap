@@ -69,6 +69,7 @@ impl AnimRenderPass {
             let model_transform = &world.model_transform;
 
             let animator = model.animator.borrow();
+
             let final_bones = animator.final_bone_matrices.borrow();
             let final_nodes = animator.final_node_matrices.borrow();
 
