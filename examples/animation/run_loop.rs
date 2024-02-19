@@ -40,6 +40,7 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
 
     let anim_render = AnimRenderPass::new(&mut context);
 
+    #[allow(unused_mut)]
     let mut model_transform = Mat4::IDENTITY;
     // model *= Mat4::from_rotation_x(-90.0f32.to_radians());
     // model_transform *= Mat4::from_translation(vec3(0.0, -10.4, -200.0));
@@ -75,6 +76,7 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
                 match event {
                     WindowEvent::Resized(new_size) => {
                         context.resize(new_size);
+                        world.camera_controller.resize(&context);
                         world.camera_handler.update_camera(&context, &world.camera_controller);
                         world.depth_texture_view = create_depth_texture_view(&context);
                         context.window.request_redraw();
@@ -91,9 +93,7 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
                         }
                         world.frame_time = current_time;
 
-                        // println!("current_time: {:?}  delta_time: {:?}", world.frame_time, world.delta_time);
-
-                        world.model.update_animation(&context, world.delta_time);
+                        world.model.update_animation(world.delta_time);
 
                         anim_render.render(&context, &world);
 

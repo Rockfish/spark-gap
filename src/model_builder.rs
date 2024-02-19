@@ -14,7 +14,6 @@ use log::debug;
 use russimp::node::Node;
 use russimp::scene::{PostProcess, Scene};
 use std::cell::RefCell;
-use std::num::NonZeroU32;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -373,7 +372,7 @@ impl ModelBuilder {
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("final bones matrices"),
                 contents: bytemuck::cast_slice(data.borrow().as_ref()),
-                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             })
     }
 
@@ -409,11 +408,11 @@ impl ModelBuilder {
                         binding: 2,
                         visibility: wgpu::ShaderStages::VERTEX,
                         ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            ty: wgpu::BufferBindingType::Uniform,
                             has_dynamic_offset: false,
-                            min_binding_size: None,
+                            min_binding_size: wgpu::BufferSize::new((MAX_BONES * 16) as _),
                         },
-                        count: NonZeroU32::new(MAX_BONES as u32),
+                        count: None,
                     },
                 ],
                 label: Some("model bind group layout"),

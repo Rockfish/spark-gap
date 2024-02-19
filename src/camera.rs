@@ -26,8 +26,6 @@ impl CameraController {
 
     pub fn new(aspect: f32, position: Vec3, yaw: f32, pitch: f32) -> CameraController {
 
-        println!("position: {:?}", &position);
-
         Self {
             speed: 10.0,
             sensitivity: 0.1,
@@ -68,8 +66,6 @@ impl CameraController {
             projection: self.get_projection_matrix(),
             view: self.get_view_matrix(),
             // view: self.get_lookat_view_matrix(Vec3::ZERO),
-            // view:  Mat4::look_at_rh(Vec3::new(1.5, 10.0, 200.0), Vec3::ZERO, Vec3::Y),
-            // view: self.get_lookat_view_matrix(vec3(0.0, -10.4, -400.0)),
             position: self.position,
             _padding: 0,
         }

@@ -3,10 +3,7 @@ use std::rc::Rc;
 use std::time::Duration;
 use wgpu::{BindGroup, Buffer};
 use crate::animator::{AnimationClip, Animator, WeightedAnimation};
-use crate::context::Context;
 use crate::model_mesh::ModelMesh;
-
-
 
 // model data
 #[derive(Debug)]
@@ -22,7 +19,7 @@ pub struct Model {
 
 impl Model {
 
-    pub fn update_animation(&self, context: &Context, delta_time: f32) {
+    pub fn update_animation(&self, delta_time: f32) {
         self.animator.borrow_mut().update_animation(delta_time);
     }
 
