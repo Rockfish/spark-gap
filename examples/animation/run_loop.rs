@@ -3,8 +3,8 @@ use crate::world::World;
 use glam::{vec3, Mat4, Vec3};
 use spark_gap::camera::camera_handler::CameraHandler;
 use spark_gap::camera::fly_camera_controller::FlyCameraController;
-use spark_gap::context::Context;
 use spark_gap::frame_counter::FrameCounter;
+use spark_gap::gpu_context::GpuContext;
 use spark_gap::input::Input;
 use spark_gap::model_builder::ModelBuilder;
 use std::sync::Arc;
@@ -23,7 +23,7 @@ pub const BACKGROUND_COLOR: wgpu::Color = wgpu::Color {
 };
 
 pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
-    let mut context = Context::new(window).await;
+    let mut context = GpuContext::new(window).await;
     let mut frame_counter = FrameCounter::new();
     let size = context.window.inner_size();
     let aspect_ratio = size.width as f32 / size.height as f32;
@@ -44,7 +44,7 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
 
     #[allow(unused_mut)]
     let mut model_transform = Mat4::IDENTITY;
-    let model_transform = Mat4::from_translation(vec3(40.0, 10.0, 1.0));
+    model_transform *= Mat4::from_translation(vec3(0.0, 0.0, 1.0));
     // model *= Mat4::from_rotation_x(-90.0f32.to_radians());
     // model_transform *= Mat4::from_translation(vec3(0.0, -10.4, -200.0));
     // model *= Mat4::from_scale(vec3(0.3, 0.3, 0.3));

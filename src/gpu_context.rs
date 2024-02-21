@@ -4,7 +4,7 @@ use std::sync::Arc;
 use wgpu::BindGroupLayout;
 use winit::window::Window;
 
-pub struct Context {
+pub struct GpuContext {
     pub window: Arc<Window>,
     pub surface: wgpu::Surface<'static>,
     pub adapter: wgpu::Adapter,
@@ -15,14 +15,14 @@ pub struct Context {
     pub bind_layout_cache: HashMap<String, BindGroupLayout>,
 }
 
-impl Drop for Context {
+impl Drop for GpuContext {
     fn drop(&mut self) {
         debug!("Context dropped")
     }
 }
 
-impl Context {
-    pub async fn new(window: Arc<Window>) -> Context {
+impl GpuContext {
+    pub async fn new(window: Arc<Window>) -> GpuContext {
         let mut size = window.inner_size();
         size.width = size.width.max(1);
         size.height = size.height.max(1);

@@ -3,8 +3,8 @@ use crate::texture::{create_depth_texture, Texture};
 use glam::vec3;
 use spark_gap::camera::camera_handler::{CameraHandler, CAMERA_BIND_GROUP_LAYOUT};
 use spark_gap::camera::fly_camera_controller::FlyCameraController;
-use spark_gap::context::Context;
 use spark_gap::frame_counter::FrameCounter;
+use spark_gap::gpu_context::GpuContext;
 use spark_gap::model_mesh::ModelVertex;
 use std::sync::Arc;
 use wgpu::{BindGroupLayout, RenderPipeline};
@@ -22,7 +22,7 @@ const BACKGROUND_COLOR: wgpu::Color = wgpu::Color {
 };
 
 pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
-    let mut context = Context::new(window).await;
+    let mut context = GpuContext::new(window).await;
     let mut frame_counter = FrameCounter::new();
 
     let size = context.window.inner_size();
@@ -72,7 +72,13 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
         .unwrap();
 }
 
-pub fn draw(context: &Context, render_pipeline: &RenderPipeline, camera_handler: &CameraHandler, model: &Model, depth_texture: &Texture) {
+pub fn draw(
+    context: &GpuContext,
+    render_pipeline: &RenderPipeline,
+    camera_handler: &CameraHandler,
+    model: &Model,
+    depth_texture: &Texture,
+) {
     let frame = context
         .surface
         .get_current_texture()
@@ -126,7 +132,7 @@ pub fn draw(context: &Context, render_pipeline: &RenderPipeline, camera_handler:
 }
 
 pub fn create_render_pipeline(
-    context: &Context,
+    context: &GpuContext,
     texture_bind_group_layout: &BindGroupLayout,
     camera_bind_group_layout: &BindGroupLayout,
 ) -> RenderPipeline {

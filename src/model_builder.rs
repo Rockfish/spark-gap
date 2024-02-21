@@ -1,7 +1,7 @@
 use crate::animator::{Animator, MAX_BONES};
-use crate::context::Context;
 use crate::error::Error;
 use crate::error::Error::{MeshError, SceneError};
+use crate::gpu_context::GpuContext;
 use crate::hash_map::HashMap;
 use crate::material::Material;
 use crate::model::Model;
@@ -93,7 +93,7 @@ impl ModelBuilder {
         self
     }
 
-    pub fn build(mut self, context: &mut Context) -> Result<Model, Error> {
+    pub fn build(mut self, context: &mut GpuContext) -> Result<Model, Error> {
         let scene = ModelBuilder::load_russimp_scene(self.filepath.as_str())?;
 
         self.load_model(context, &scene)?;
@@ -125,6 +125,7 @@ impl ModelBuilder {
             name: Rc::from(self.name),
             meshes: Rc::from(self.meshes),
             animator: animator.into(),
+            model_transform: Default::default(),
             model_transform_buffer,
             node_transform_buffer,
             final_bones_matrices_buffer,
@@ -151,7 +152,7 @@ impl ModelBuilder {
         Ok(scene)
     }
 
-    fn load_model(&mut self, context: &mut Context, scene: &Scene) -> Result<(), Error> {
+    fn load_model(&mut self, context: &mut GpuContext, scene: &Scene) -> Result<(), Error> {
         match &scene.root {
             None => Err(SceneError("Error getting scene root node".to_string())),
             Some(root_node) => self.process_node(context, root_node, scene),
@@ -159,7 +160,7 @@ impl ModelBuilder {
     }
 
     #[allow(clippy::needless_range_loop)]
-    fn process_node(&mut self, context: &mut Context, node: &Rc<Node>, scene: &Scene) -> Result<(), Error> {
+    fn process_node(&mut self, context: &mut GpuContext, node: &Rc<Node>, scene: &Scene) -> Result<(), Error> {
         for mesh_id in &node.meshes {
             let scene_mesh = &scene.meshes[*mesh_id as usize];
             let mesh = self.process_mesh(context, scene_mesh, scene);
@@ -174,7 +175,7 @@ impl ModelBuilder {
     }
 
     #[allow(clippy::needless_range_loop)]
-    fn process_mesh(&mut self, context: &mut Context, r_mesh: &russimp::mesh::Mesh, scene: &Scene) -> Result<ModelMesh, Error> {
+    fn process_mesh(&mut self, context: &mut GpuContext, r_mesh: &russimp::mesh::Mesh, scene: &Scene) -> Result<ModelMesh, Error> {
         let mut vertices: Vec<ModelVertex> = vec![];
         let mut indices: Vec<u32> = vec![];
         let mut materials: Vec<Rc<Material>> = vec![];
@@ -260,7 +261,7 @@ impl ModelBuilder {
         }
     }
 
-    fn add_textures(&mut self, context: &mut Context) -> Result<(), Error> {
+    fn add_textures(&mut self, context: &mut GpuContext) -> Result<(), Error> {
         for added_texture in &self.added_textures {
             let texture = self.load_or_get_material(context, &added_texture.texture_type, added_texture.texture_filename.as_str())?;
             let mesh = self.meshes.iter_mut().find(|mesh| mesh.name == added_texture.mesh_name);
@@ -279,7 +280,7 @@ impl ModelBuilder {
 
     fn load_or_get_material(
         &self,
-        context: &mut Context,
+        context: &mut GpuContext,
         texture_type: &TextureType,
         texture_filename: &str,
     ) -> Result<Rc<Material>, Error> {
@@ -318,7 +319,7 @@ impl ModelBuilder {
         }
     }
 
-    fn create_transform_buffer(context: &Context, label: &str, data: &Mat4) -> Buffer {
+    fn create_transform_buffer(context: &GpuContext, label: &str, data: &Mat4) -> Buffer {
         context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some(label),
             contents: bytemuck::cast_slice(&data.to_cols_array()),
@@ -326,7 +327,7 @@ impl ModelBuilder {
         })
     }
 
-    fn create_final_bones_buffer(context: &Context, data: &RefCell<Box<[Mat4]>>) -> Buffer {
+    fn create_final_bones_buffer(context: &GpuContext, data: &RefCell<Box<[Mat4]>>) -> Buffer {
         context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("final bones matrices"),
             contents: bytemuck::cast_slice(data.borrow().as_ref()),
@@ -334,7 +335,7 @@ impl ModelBuilder {
         })
     }
 
-    fn create_bind_group_layout(context: &Context) -> BindGroupLayout {
+    fn create_bind_group_layout(context: &GpuContext) -> BindGroupLayout {
         context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
                 // 0: model transform
@@ -376,7 +377,7 @@ impl ModelBuilder {
     }
 
     fn create_bind_group(
-        context: &Context,
+        context: &GpuContext,
         bind_group_layout: &BindGroupLayout,
         model_transform: &Buffer,
         node_transform: &Buffer,

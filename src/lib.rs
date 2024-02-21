@@ -7,9 +7,9 @@ use std::os::raw;
 
 pub mod animator;
 pub mod camera;
-pub mod context;
 pub mod error;
 pub mod frame_counter;
+pub mod gpu_context;
 pub mod hash_any;
 pub mod hash_map;
 pub mod input;

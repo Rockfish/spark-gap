@@ -1,5 +1,5 @@
 use crate::camera::fly_camera_controller::FlyCameraController;
-use crate::context::Context;
+use crate::gpu_context::GpuContext;
 use glam::{Mat4, Vec3};
 use wgpu::util::DeviceExt;
 use wgpu::{BindGroup, BindGroupLayout, Buffer};
@@ -21,7 +21,7 @@ pub struct CameraHandler {
 }
 
 impl CameraHandler {
-    pub fn new(context: &mut Context, camera_controller: &FlyCameraController) -> Self {
+    pub fn new(context: &mut GpuContext, camera_controller: &FlyCameraController) -> Self {
         let camera_uniform = camera_controller.get_camera_uniform();
 
         let camera_buffer = context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -49,7 +49,7 @@ impl CameraHandler {
         Self { camera_buffer, bind_group }
     }
 
-    pub fn update_camera(&self, context: &Context, camera_controller: &FlyCameraController) {
+    pub fn update_camera(&self, context: &GpuContext, camera_controller: &FlyCameraController) {
         let camera_uniform = camera_controller.get_camera_uniform();
         context
             .queue
@@ -57,7 +57,7 @@ impl CameraHandler {
     }
 }
 
-fn create_camera_bind_group_layout(context: &Context) -> BindGroupLayout {
+fn create_camera_bind_group_layout(context: &GpuContext) -> BindGroupLayout {
     context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         entries: &[wgpu::BindGroupLayoutEntry {
             binding: 0,

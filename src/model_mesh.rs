@@ -1,4 +1,4 @@
-use crate::context::Context;
+use crate::gpu_context::GpuContext;
 use crate::material::Material;
 use glam::u32;
 use glam::*;
@@ -130,7 +130,7 @@ pub struct ModelMesh {
 
 impl ModelMesh {
     pub fn new(
-        context: &Context,
+        context: &GpuContext,
         id: i32,
         name: impl Into<String>,
         vertices: Vec<ModelVertex>,

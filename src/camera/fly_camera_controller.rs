@@ -1,5 +1,5 @@
 use crate::camera::camera_handler::CameraUniform;
-use crate::context::Context;
+use crate::gpu_context::GpuContext;
 use glam::{Mat4, Quat, Vec3};
 
 #[derive(Debug, Clone, Copy)]
@@ -56,7 +56,7 @@ impl FlyCameraController {
         }
     }
 
-    pub fn resize(&mut self, context: &Context) {
+    pub fn resize(&mut self, context: &GpuContext) {
         let size = context.window.inner_size();
         self.aspect_ratio = size.width as f32 / size.height as f32;
     }

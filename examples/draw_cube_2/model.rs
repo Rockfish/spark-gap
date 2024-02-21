@@ -1,7 +1,7 @@
 use crate::cube::Cube;
 use crate::texture;
 use crate::texture::{get_texture, get_texture_bind_group};
-use spark_gap::context::Context;
+use spark_gap::gpu_context::GpuContext;
 use wgpu::util::DeviceExt;
 
 // #[repr(C)]
@@ -32,7 +32,7 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn new(context: &Context) -> Self {
+    pub fn new(context: &GpuContext) -> Self {
         let cube = Cube::new();
 
         let vertex_buffer = context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

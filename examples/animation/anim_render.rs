@@ -2,7 +2,7 @@ use crate::run_loop::BACKGROUND_COLOR;
 use crate::world::World;
 use glam::{vec3, Mat4};
 use spark_gap::camera::camera_handler::CAMERA_BIND_GROUP_LAYOUT;
-use spark_gap::context::Context;
+use spark_gap::gpu_context::GpuContext;
 use spark_gap::material::MATERIAL_BIND_GROUP_LAYOUT;
 use spark_gap::model::Model;
 use spark_gap::model_builder::MODEL_BIND_GROUP_LAYOUT;
@@ -15,13 +15,13 @@ pub struct AnimRenderPass {
 }
 
 impl AnimRenderPass {
-    pub fn new(context: &Context) -> Self {
+    pub fn new(context: &GpuContext) -> Self {
         let render_pipeline = create_render_pipeline(context);
 
         Self { render_pipeline }
     }
 
-    pub fn render(&self, context: &Context, world: &World) {
+    pub fn render(&self, context: &GpuContext, world: &World) {
         let frame = context
             .surface
             .get_current_texture()
@@ -73,44 +73,28 @@ impl AnimRenderPass {
     }
 }
 
-fn render_model<'a>(context: &'a Context, mut render_pass: RenderPass<'a>, model: &'a Model, model_transform: &'a Mat4) -> RenderPass<'a> {
+fn render_model<'a>(
+    context: &'a GpuContext,
+    mut render_pass: RenderPass<'a>,
+    model: &'a Model,
+    model_transform: &'a Mat4,
+) -> RenderPass<'a> {
+    model.update_model_buffers(context, &model_transform);
     render_pass.set_bind_group(1, &model.bind_group, &[]);
 
-    let animator = model.animator.borrow();
-
-    let final_bones = animator.final_bone_matrices.borrow();
-    let final_nodes = animator.final_node_matrices.borrow();
-
-    context.queue.write_buffer(
-        &model.model_transform_buffer,
-        0,
-        bytemuck::cast_slice(&model_transform.to_cols_array()),
-    );
-
-    context
-        .queue
-        .write_buffer(&model.final_bones_matrices_buffer, 0, bytemuck::cast_slice(final_bones.as_ref()));
-
     for mesh in model.meshes.iter() {
-        let node_transform = &final_nodes[mesh.id as usize].to_cols_array();
+        model.update_mesh_buffers(context, &mesh);
+        let material_bind_group = model.get_material_bind_group(&mesh, TextureType::Diffuse);
 
-        context
-            .queue
-            .write_buffer(&model.node_transform_buffer, 0, bytemuck::cast_slice(node_transform));
-
-        let diffuse_material = mesh.materials.iter().find(|m| m.texture_type == TextureType::Diffuse).unwrap();
-
+        render_pass.set_bind_group(2, material_bind_group, &[]);
         render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
         render_pass.set_index_buffer(mesh.index_buffer.slice(..), IndexFormat::Uint32);
-
-        render_pass.set_bind_group(2, &diffuse_material.bind_group, &[]);
-
         render_pass.draw_indexed(0..mesh.num_elements, 0, 0..1);
     }
     render_pass
 }
 
-pub fn create_render_pipeline(context: &Context) -> RenderPipeline {
+pub fn create_render_pipeline(context: &GpuContext) -> RenderPipeline {
     let camera_bind_group_layout = context.bind_layout_cache.get(CAMERA_BIND_GROUP_LAYOUT).unwrap();
     let model_bind_group_layout = context.bind_layout_cache.get(MODEL_BIND_GROUP_LAYOUT).unwrap();
     let material_bind_group_layout = context.bind_layout_cache.get(MATERIAL_BIND_GROUP_LAYOUT).unwrap();
@@ -167,7 +151,7 @@ pub fn create_render_pipeline(context: &Context) -> RenderPipeline {
 
 pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
-pub fn create_depth_texture_view(context: &Context) -> TextureView {
+pub fn create_depth_texture_view(context: &GpuContext) -> TextureView {
     let size = context.window.inner_size();
 
     let size = wgpu::Extent3d {

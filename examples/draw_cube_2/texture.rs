@@ -1,5 +1,5 @@
 use image::GenericImageView;
-use spark_gap::context::Context;
+use spark_gap::gpu_context::GpuContext;
 use wgpu::{BindGroup, BindGroupLayout};
 
 pub struct Texture {
@@ -8,7 +8,7 @@ pub struct Texture {
     pub sampler: wgpu::Sampler,
 }
 
-pub fn get_texture(context: &Context) -> Texture {
+pub fn get_texture(context: &GpuContext) -> Texture {
     let diffuse_bytes = include_bytes!("container2.png");
     let diffuse_image = image::load_from_memory(diffuse_bytes).unwrap();
     let diffuse_rgba = diffuse_image.to_rgba8();
@@ -72,7 +72,7 @@ pub fn get_texture(context: &Context) -> Texture {
 
 pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
-pub fn create_depth_texture(context: &Context) -> Texture {
+pub fn create_depth_texture(context: &GpuContext) -> Texture {
     let size = context.window.inner_size();
 
     let size = wgpu::Extent3d {
@@ -110,7 +110,7 @@ pub fn create_depth_texture(context: &Context) -> Texture {
     Texture { texture, view, sampler }
 }
 
-pub fn get_texture_bind_group(context: &Context) -> (BindGroupLayout, BindGroup) {
+pub fn get_texture_bind_group(context: &GpuContext) -> (BindGroupLayout, BindGroup) {
     let texture = get_texture(context);
 
     let texture_bind_group_layout = context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {

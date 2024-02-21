@@ -1,6 +1,6 @@
-use crate::context::Context;
 use crate::error::Error;
 use crate::error::Error::ImageError;
+use crate::gpu_context::GpuContext;
 use crate::texture_config::{TextureConfig, TextureFilter, TextureType, TextureWrap};
 use image::GenericImageView;
 use std::ffi::OsString;
@@ -23,13 +23,13 @@ pub struct Material {
 }
 
 impl Material {
-    pub fn new(context: &mut Context, file_path: impl Into<PathBuf>, texture_config: &TextureConfig) -> Result<Material, Error> {
+    pub fn new(context: &mut GpuContext, file_path: impl Into<PathBuf>, texture_config: &TextureConfig) -> Result<Material, Error> {
         let file_path = file_path.into();
         load_texture(context, &file_path, texture_config)
     }
 }
 
-pub fn load_texture(context: &mut Context, texture_path: &PathBuf, texture_config: &TextureConfig) -> Result<Material, Error> {
+pub fn load_texture(context: &mut GpuContext, texture_path: &PathBuf, texture_config: &TextureConfig) -> Result<Material, Error> {
     let mut img = match image::open(texture_path) {
         Ok(img) => img,
         Err(e) => return Err(ImageError(format!("image error: {:?}  file: {:?}", e, texture_path))),
@@ -128,7 +128,7 @@ pub fn load_texture(context: &mut Context, texture_path: &PathBuf, texture_confi
     Ok(texture)
 }
 
-pub fn create_material_bind_group_layout(context: &Context) -> BindGroupLayout {
+pub fn create_material_bind_group_layout(context: &GpuContext) -> BindGroupLayout {
     context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         entries: &[
             // 0: texture
@@ -155,7 +155,7 @@ pub fn create_material_bind_group_layout(context: &Context) -> BindGroupLayout {
 }
 
 pub fn create_texture_bind_group(
-    context: &Context,
+    context: &GpuContext,
     bind_group_layout: &BindGroupLayout,
     texture_view: &TextureView,
     texture_sampler: &Sampler,
