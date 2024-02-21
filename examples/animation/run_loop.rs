@@ -38,7 +38,6 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
 
     let model_position = Vec3::ZERO;
 
-
     let depth_texture_view = create_depth_texture_view(&context);
 
     let anim_render = AnimRenderPass::new(&mut context);

@@ -1,7 +1,7 @@
+use crate::hash_map::HashMap;
 use std::any::{Any, TypeId};
 use std::cmp::Eq;
 use std::hash::Hash;
-use crate::hash_map::HashMap;
 
 type HashKey<K> = (K, TypeId);
 type Anything = Box<dyn Any>;
@@ -30,11 +30,7 @@ impl<K: Eq + Hash> HashMapAny<K> {
     /// If the storage had a value of the type being stored
     /// under the same key it is returned.
     pub fn insert<V: Any>(&mut self, key: K, val: V) -> Option<V> {
-        let boxed = self
-            .0
-            .insert((key, val.type_id()), Box::new(val))?
-            .downcast::<V>()
-            .ok()?;
+        let boxed = self.0.insert((key, val.type_id()), Box::new(val))?.downcast::<V>().ok()?;
 
         Some(Box::into_inner(boxed))
     }
@@ -52,20 +48,14 @@ impl<K: Eq + Hash> HashMapAny<K> {
     /// a given key.  Note that the key needs to be provided
     /// with ownership.
     pub fn get_mut<V: Any>(&mut self, key: K) -> Option<&mut V> {
-        self.0
-            .get_mut(&(key, TypeId::of::<V>()))?
-            .downcast_mut::<V>()
+        self.0.get_mut(&(key, TypeId::of::<V>()))?.downcast_mut::<V>()
     }
 
     /// Removes the data of the given type under they key
     /// if it's found.  The data found is returned in an
     /// Option after it's removed.
     pub fn remove<V: Any>(&mut self, key: K) -> Option<V> {
-        let boxed = self
-            .0
-            .remove(&(key, TypeId::of::<V>()))?
-            .downcast::<V>()
-            .ok()?;
+        let boxed = self.0.remove(&(key, TypeId::of::<V>()))?.downcast::<V>().ok()?;
 
         Some(Box::into_inner(boxed))
     }
@@ -81,36 +71,18 @@ mod test {
         storage.insert("pie", std::f64::consts::PI);
         storage.insert("pie", "apple");
 
-        assert_eq!(
-            &std::f64::consts::PI,
-            storage.get::<f64>("pie").unwrap()
-        );
+        assert_eq!(&std::f64::consts::PI, storage.get::<f64>("pie").unwrap());
 
-        assert_eq!(
-            &"apple",
-            storage.get::<&str>("pie").unwrap()
-        );
+        assert_eq!(&"apple", storage.get::<&str>("pie").unwrap());
 
         *storage.get_mut("pie").unwrap() = std::f64::consts::PI;
 
-        assert_eq!(
-            &std::f64::consts::PI,
-            storage.get::<f64>("pie").unwrap()
-        );
+        assert_eq!(&std::f64::consts::PI, storage.get::<f64>("pie").unwrap());
 
-        assert_eq!(
-            None,
-            storage.get::<f32>("pie")
-        );
+        assert_eq!(None, storage.get::<f32>("pie"));
 
-        assert_eq!(
-            std::f64::consts::PI,
-            storage.remove::<f64>("pie").unwrap()
-        );
+        assert_eq!(std::f64::consts::PI, storage.remove::<f64>("pie").unwrap());
 
-        assert_eq!(
-            None,
-            storage.get::<f64>("pie")
-        );
+        assert_eq!(None, storage.get::<f64>("pie"));
     }
 }

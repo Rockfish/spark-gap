@@ -1,14 +1,14 @@
-use glam::{Mat4, vec3};
 use crate::run_loop::BACKGROUND_COLOR;
 use crate::world::World;
+use glam::{vec3, Mat4};
 use spark_gap::camera::camera_handler::CAMERA_BIND_GROUP_LAYOUT;
 use spark_gap::context::Context;
 use spark_gap::material::MATERIAL_BIND_GROUP_LAYOUT;
+use spark_gap::model::Model;
 use spark_gap::model_builder::MODEL_BIND_GROUP_LAYOUT;
 use spark_gap::model_mesh::ModelVertex;
 use spark_gap::texture_config::TextureType;
 use wgpu::{IndexFormat, RenderPass, RenderPipeline, TextureView};
-use spark_gap::model::Model;
 
 pub struct AnimRenderPass {
     render_pipeline: RenderPipeline,
@@ -74,7 +74,6 @@ impl AnimRenderPass {
 }
 
 fn render_model<'a>(context: &'a Context, mut render_pass: RenderPass<'a>, model: &'a Model, model_transform: &'a Mat4) -> RenderPass<'a> {
-
     render_pass.set_bind_group(1, &model.bind_group, &[]);
 
     let animator = model.animator.borrow();
@@ -88,18 +87,16 @@ fn render_model<'a>(context: &'a Context, mut render_pass: RenderPass<'a>, model
         bytemuck::cast_slice(&model_transform.to_cols_array()),
     );
 
-    context.queue.write_buffer(
-        &model.final_bones_matrices_buffer,
-        0,
-        bytemuck::cast_slice(final_bones.as_ref()));
+    context
+        .queue
+        .write_buffer(&model.final_bones_matrices_buffer, 0, bytemuck::cast_slice(final_bones.as_ref()));
 
     for mesh in model.meshes.iter() {
         let node_transform = &final_nodes[mesh.id as usize].to_cols_array();
 
-        context.queue.write_buffer(
-            &model.node_transform_buffer,
-            0,
-            bytemuck::cast_slice(node_transform));
+        context
+            .queue
+            .write_buffer(&model.node_transform_buffer, 0, bytemuck::cast_slice(node_transform));
 
         let diffuse_material = mesh.materials.iter().find(|m| m.texture_type == TextureType::Diffuse).unwrap();
 
@@ -112,8 +109,6 @@ fn render_model<'a>(context: &'a Context, mut render_pass: RenderPass<'a>, model
     }
     render_pass
 }
-
-
 
 pub fn create_render_pipeline(context: &Context) -> RenderPipeline {
     let camera_bind_group_layout = context.bind_layout_cache.get(CAMERA_BIND_GROUP_LAYOUT).unwrap();

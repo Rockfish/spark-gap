@@ -137,7 +137,6 @@ impl ModelMesh {
         indices: Vec<u32>,
         materials: Vec<Rc<Material>>,
     ) -> ModelMesh {
-
         let vertex_buffer = context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
             contents: bytemuck::cast_slice(&vertices),
