@@ -14,7 +14,7 @@ pub struct Model {
     pub model_transform_buffer: Buffer,
     pub node_transform_buffer: Buffer,
     pub final_bones_matrices_buffer: Buffer,
-    pub bind_group: BindGroup,
+    pub bind_group: BindGroup, // binds buffers into a group
 }
 
 impl Model {

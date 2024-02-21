@@ -34,8 +34,10 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
 
     let model_path = "examples/animation/vampire/dancing_vampire.dae";
     let model = ModelBuilder::new("model", model_path).build(&mut context).unwrap();
+    let model_2 = ModelBuilder::new("model", model_path).build(&mut context).unwrap();
 
     let model_position = Vec3::ZERO;
+
 
     let depth_texture_view = create_depth_texture_view(&context);
 
@@ -43,6 +45,7 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
 
     #[allow(unused_mut)]
     let mut model_transform = Mat4::IDENTITY;
+    let model_transform = Mat4::from_translation(vec3(40.0, 10.0, 1.0));
     // model *= Mat4::from_rotation_x(-90.0f32.to_radians());
     // model_transform *= Mat4::from_translation(vec3(0.0, -10.4, -200.0));
     // model *= Mat4::from_scale(vec3(0.3, 0.3, 0.3));
@@ -54,6 +57,7 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
         camera_controller,
         camera_handler,
         model,
+        model_2,
         model_position,
         model_transform,
         depth_texture_view,
@@ -85,13 +89,14 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
 
                             world.update_time();
 
-                            world.model.update_animation(world.delta_time);
+                            world.model.update_animation(world.delta_time - 0.004);
+                            world.model_2.update_animation(world.delta_time);
 
                             anim_render.render(&context, &world);
 
                             context.window.request_redraw();
 
-                            println!("Input: {:#?}\n", &world.input);
+                            // println!("Input: {:#?}\n", &world.input);
                         }
                         WindowEvent::KeyboardInput { event, .. } => {
                             // if event.state == ElementState::Pressed {

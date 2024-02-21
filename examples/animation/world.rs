@@ -10,6 +10,7 @@ pub struct World {
     pub camera_controller: FlyCameraController,
     pub camera_handler: CameraHandler,
     pub model: Model,
+    pub model_2: Model,
     pub model_position: Vec3,
     pub model_transform: Mat4,
     pub depth_texture_view: TextureView,

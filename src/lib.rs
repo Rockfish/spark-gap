@@ -1,3 +1,5 @@
+#![feature(box_into_inner)]
+
 use glam::{Quat, Vec2, Vec3, Vec4};
 use std::ffi::c_void;
 use std::mem;
@@ -19,6 +21,7 @@ pub mod node_animation;
 pub mod texture_config;
 pub mod transform;
 pub mod utils;
+pub mod hash_any;
 
 pub const SIZE_OF_FLOAT: usize = mem::size_of::<f32>();
 pub const SIZE_OF_VEC2: usize = mem::size_of::<Vec2>();

@@ -35,7 +35,7 @@ impl AnimationClip {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WeightedAnimation {
     pub weight: f32,
     pub start_tick: f32,
@@ -129,10 +129,6 @@ pub struct Animator {
 
     pub node_transforms: RefCell<HashMap<Rc<str>, NodeTransform>>,
 
-    // pub final_bone_matrices: RefCell<Vec<Mat4>>,
-    // pub final_node_matrices: RefCell<Vec<Mat4>>,
-    // pub final_bone_matrices: RefCell<[Mat4; MAX_BONES]>,
-    // pub final_node_matrices: RefCell<[Mat4; MAX_NODES]>,
     pub final_bone_matrices: RefCell<Box<[Mat4]>>,
     pub final_node_matrices: RefCell<Box<[Mat4]>>,
 }
@@ -144,16 +140,6 @@ impl Animator {
         let root_node = read_hierarchy_data(&root);
 
         let model_animation = ModelAnimation::new(scene);
-
-        // let mut final_bone_matrices = Vec::with_capacity(100);
-        // let mut final_node_matrices = Vec::with_capacity(50);
-        //
-        // for i in 0..100 {
-        //     final_bone_matrices.push(Mat4::IDENTITY);
-        //     if i < 50 {
-        //         final_node_matrices.push(Mat4::IDENTITY);
-        //     }
-        // }
 
         let final_bone_matrices = [Mat4::IDENTITY; MAX_BONES];
         let final_node_matrices = [Mat4::IDENTITY; MAX_NODES];
@@ -179,8 +165,6 @@ impl Animator {
             current_animation,
             transitions: vec![].into(),
             node_transforms: HashMap::new().into(),
-            // final_bone_matrices: final_bone_matrices.into(),
-            // final_node_matrices: final_node_matrices.into(),
             final_bone_matrices: RefCell::new(Box::new(final_bone_matrices)),
             final_node_matrices: RefCell::new(Box::new(final_node_matrices)),
         }

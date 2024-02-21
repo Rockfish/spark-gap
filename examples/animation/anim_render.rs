@@ -1,3 +1,4 @@
+use glam::{Mat4, vec3};
 use crate::run_loop::BACKGROUND_COLOR;
 use crate::world::World;
 use spark_gap::camera::camera_handler::CAMERA_BIND_GROUP_LAYOUT;
@@ -6,7 +7,8 @@ use spark_gap::material::MATERIAL_BIND_GROUP_LAYOUT;
 use spark_gap::model_builder::MODEL_BIND_GROUP_LAYOUT;
 use spark_gap::model_mesh::ModelVertex;
 use spark_gap::texture_config::TextureType;
-use wgpu::{IndexFormat, RenderPipeline, TextureView};
+use wgpu::{IndexFormat, RenderPass, RenderPipeline, TextureView};
+use spark_gap::model::Model;
 
 pub struct AnimRenderPass {
     render_pipeline: RenderPipeline,
@@ -27,80 +29,91 @@ impl AnimRenderPass {
 
         let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
+        let pass_description = wgpu::RenderPassDescriptor {
+            label: Some("render pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(BACKGROUND_COLOR),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &world.depth_texture_view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        };
+
         let mut encoder = context
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
         {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("render pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(BACKGROUND_COLOR),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &world.depth_texture_view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
-                        store: wgpu::StoreOp::Store,
-                    }),
-                    stencil_ops: None,
-                }),
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
+            let mut render_pass = encoder.begin_render_pass(&pass_description);
 
             render_pass.set_pipeline(&self.render_pipeline);
-
             render_pass.set_bind_group(0, &world.camera_handler.bind_group, &[]);
-            render_pass.set_bind_group(1, &world.model.bind_group, &[]);
 
-            let model = &world.model;
-            let model_transform = &world.model_transform;
+            let render_pass = render_model(context, render_pass, &world.model, &world.model_transform);
 
-            let animator = model.animator.borrow();
+            let model_transform = Mat4::from_translation(vec3(50.0, 0.0, -100.0));
 
-            let final_bones = animator.final_bone_matrices.borrow();
-            let final_nodes = animator.final_node_matrices.borrow();
-
-            context.queue.write_buffer(
-                &model.model_transform_buffer,
-                0,
-                bytemuck::cast_slice(&model_transform.to_cols_array()),
-            );
-
-            context
-                .queue
-                .write_buffer(&model.final_bones_matrices_buffer, 0, bytemuck::cast_slice(final_bones.as_ref()));
-
-            for mesh in model.meshes.iter() {
-                let node_transform = &final_nodes[mesh.id as usize].to_cols_array();
-
-                context
-                    .queue
-                    .write_buffer(&model.node_transform_buffer, 0, bytemuck::cast_slice(node_transform));
-
-                let diffuse_material = mesh.materials.iter().find(|m| m.texture_type == TextureType::Diffuse).unwrap();
-
-                // println!("material: {:?}", &diffuse_material);
-
-                render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-                render_pass.set_index_buffer(mesh.index_buffer.slice(..), IndexFormat::Uint32);
-
-                render_pass.set_bind_group(2, &diffuse_material.bind_group, &[]);
-
-                render_pass.draw(0..mesh.num_elements, 0..1);
-            }
+            render_model(context, render_pass, &world.model_2, &model_transform);
         }
 
         context.queue.submit(Some(encoder.finish()));
         frame.present();
     }
 }
+
+fn render_model<'a>(context: &'a Context, mut render_pass: RenderPass<'a>, model: &'a Model, model_transform: &'a Mat4) -> RenderPass<'a> {
+
+    render_pass.set_bind_group(1, &model.bind_group, &[]);
+
+    let animator = model.animator.borrow();
+
+    let final_bones = animator.final_bone_matrices.borrow();
+    let final_nodes = animator.final_node_matrices.borrow();
+
+    context.queue.write_buffer(
+        &model.model_transform_buffer,
+        0,
+        bytemuck::cast_slice(&model_transform.to_cols_array()),
+    );
+
+    context.queue.write_buffer(
+        &model.final_bones_matrices_buffer,
+        0,
+        bytemuck::cast_slice(final_bones.as_ref()));
+
+    for mesh in model.meshes.iter() {
+        let node_transform = &final_nodes[mesh.id as usize].to_cols_array();
+
+        context.queue.write_buffer(
+            &model.node_transform_buffer,
+            0,
+            bytemuck::cast_slice(node_transform));
+
+        let diffuse_material = mesh.materials.iter().find(|m| m.texture_type == TextureType::Diffuse).unwrap();
+
+        render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+        render_pass.set_index_buffer(mesh.index_buffer.slice(..), IndexFormat::Uint32);
+
+        render_pass.set_bind_group(2, &diffuse_material.bind_group, &[]);
+
+        render_pass.draw_indexed(0..mesh.num_elements, 0, 0..1);
+    }
+    render_pass
+}
+
+
 
 pub fn create_render_pipeline(context: &Context) -> RenderPipeline {
     let camera_bind_group_layout = context.bind_layout_cache.get(CAMERA_BIND_GROUP_LAYOUT).unwrap();

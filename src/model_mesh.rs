@@ -119,8 +119,9 @@ impl Default for ModelVertex {
 pub struct ModelMesh {
     pub id: i32,
     pub name: String,
-    pub vertices: Vec<ModelVertex>,
-    pub indices: Vec<u32>,
+    // no need to save the indices and vertexes if not changing them.
+    // pub vertices: Vec<ModelVertex>,
+    // pub indices: Vec<u32>,
     pub materials: Vec<Rc<Material>>,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
@@ -136,9 +137,6 @@ impl ModelMesh {
         indices: Vec<u32>,
         materials: Vec<Rc<Material>>,
     ) -> ModelMesh {
-        let num_elements = vertices.len() as u32;
-
-        // let vertex_data: Box<[ModelVertex]> = Box::from(vertices.as_slice());
 
         let vertex_buffer = context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
@@ -152,11 +150,13 @@ impl ModelMesh {
             usage: wgpu::BufferUsages::INDEX,
         });
 
+        let num_elements = indices.len() as u32;
+
         ModelMesh {
             id,
             name: name.into(),
-            vertices,
-            indices,
+            // vertices,
+            // indices,
             materials,
             vertex_buffer,
             index_buffer,
