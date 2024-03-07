@@ -6,16 +6,16 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 
 #[derive(Debug, Clone)]
 pub struct Input {
-    keys_pressed: HashSet<KeyCode>,
-    keys_held: HashSet<KeyCode>,
-    mouse_buttons_pressed: HashSet<MouseButton>,
-    mouse_buttons_held: HashSet<MouseButton>,
-    mouse_position: Option<glam::Vec2>,
-    mouse_delta: glam::Vec2,
-    mouse_wheel_delta: f32,
-    last_update: std::time::Instant,
-    update_delta: std::time::Duration,
-    enabled: Arc<AtomicBool>,
+    pub keys_pressed: HashSet<KeyCode>,
+    pub keys_held: HashSet<KeyCode>,
+    pub mouse_buttons_pressed: HashSet<MouseButton>,
+    pub mouse_buttons_held: HashSet<MouseButton>,
+    pub mouse_position: Option<glam::Vec2>,
+    pub mouse_delta: glam::Vec2,
+    pub mouse_wheel_delta: f32,
+    pub last_update: std::time::Instant,
+    pub update_delta: std::time::Duration,
+    pub enabled: Arc<AtomicBool>,
 }
 
 impl Default for Input {

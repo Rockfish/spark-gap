@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use crate::hash_map::HashMap;
 use log::debug;
 use std::sync::Arc;
@@ -12,7 +13,7 @@ pub struct GpuContext {
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
-    pub bind_layout_cache: HashMap<String, BindGroupLayout>,
+    pub bind_layout_cache: HashMap<String, Rc<BindGroupLayout>>,
 }
 
 impl Drop for GpuContext {
@@ -40,12 +41,18 @@ impl GpuContext {
             .await
             .expect("Failed to find an appropriate adapter");
 
+        let desired_max_bind_groups = 8;
+
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
                     required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits::downlevel_webgl2_defaults().using_resolution(adapter.limits()),
+                    // required_limits: wgpu::Limits::downlevel_webgl2_defaults().using_resolution(adapter.limits()),
+                    required_limits: wgpu::Limits {
+                        max_bind_groups: desired_max_bind_groups,
+                        ..wgpu::Limits::default() // Fill in other limits with default values
+                    },
                 },
                 None,
             )

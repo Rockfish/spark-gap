@@ -3,7 +3,6 @@
 mod cube;
 mod model;
 mod render;
-mod texture;
 
 use crate::render::run;
 use std::sync::Arc;

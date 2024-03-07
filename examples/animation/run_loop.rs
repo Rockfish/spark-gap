@@ -32,6 +32,10 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
     let camera_controller = FlyCameraController::new(aspect_ratio, camera_position, 0.0, 0.0);
     let camera_handler = CameraHandler::new(&mut context, &camera_controller);
 
+    let camera_position = vec3(0.0, 100.0, -200.0);
+    let camera_controller_2 = FlyCameraController::new(aspect_ratio, camera_position, -90.0, 0.0);
+    let camera_handler_2 = CameraHandler::new(&mut context, &camera_controller_2);
+
     let model_path = "examples/animation/vampire/dancing_vampire.dae";
     let model = ModelBuilder::new("model", model_path).build(&mut context).unwrap();
     let model_2 = ModelBuilder::new("model", model_path).build(&mut context).unwrap();
@@ -55,6 +59,8 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
     let mut world = World {
         camera_controller,
         camera_handler,
+        camera_controller_2,
+        camera_handler_2,
         model,
         model_2,
         model_position,
@@ -87,6 +93,9 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
                             frame_counter.update();
 
                             world.update_time();
+
+                            world.camera_controller.update(&world.input, world.delta_time);
+                            world.camera_handler.update_camera(&context, &world.camera_controller);
 
                             world.model.update_animation(world.delta_time - 0.004);
                             world.model_2.update_animation(world.delta_time);

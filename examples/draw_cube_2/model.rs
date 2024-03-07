@@ -1,8 +1,7 @@
 use crate::cube::Cube;
-use crate::texture;
-use crate::texture::{get_texture, get_texture_bind_group};
 use spark_gap::gpu_context::GpuContext;
 use wgpu::util::DeviceExt;
+use spark_gap::texture::{get_texture, get_texture_bind_group, Texture};
 
 // #[repr(C)]
 // #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -21,7 +20,7 @@ pub struct Mesh {
 
 pub struct Material {
     pub name: String,
-    pub diffuse_texture: texture::Texture,
+    pub diffuse_texture: Texture,
     pub bind_group: wgpu::BindGroup,
     pub bind_group_layout: wgpu::BindGroupLayout,
 }
@@ -47,8 +46,8 @@ impl Model {
             num_elements: cube.num_elements,
         };
 
-        let diffuse_texture = get_texture(context);
-        let (bind_group_layout, bind_group) = get_texture_bind_group(context);
+        let diffuse_texture = get_texture(context, "examples/draw_cube_2/container2.png").unwrap();
+        let (bind_group_layout, bind_group) = get_texture_bind_group(context, &diffuse_texture);
 
         let material = Material {
             name: String::from("Container Texture"),

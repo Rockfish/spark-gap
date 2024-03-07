@@ -21,6 +21,12 @@ pub struct Model {
     pub bind_group: BindGroup, // binds buffers into a group
 }
 
+pub struct ModelUniform {
+    pub model_transform: Mat4,
+    pub final_bone_matrices: RefCell<Box<[Mat4]>>,
+    pub final_node_matrices: RefCell<Box<[Mat4]>>,
+}
+
 impl Model {
     pub fn update_animation(&self, delta_time: f32) {
         self.animator.borrow_mut().update_animation(delta_time);

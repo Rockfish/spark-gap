@@ -22,6 +22,8 @@ pub mod node_animation;
 pub mod texture_config;
 pub mod transform;
 pub mod utils;
+pub mod texture;
+pub mod math;
 
 pub const SIZE_OF_FLOAT: usize = mem::size_of::<f32>();
 pub const SIZE_OF_VEC2: usize = mem::size_of::<Vec2>();

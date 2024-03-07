@@ -1,5 +1,4 @@
 use crate::model::Model;
-use crate::texture::{create_depth_texture, Texture};
 use glam::vec3;
 use spark_gap::camera::camera_handler::{CameraHandler, CAMERA_BIND_GROUP_LAYOUT};
 use spark_gap::camera::fly_camera_controller::FlyCameraController;
@@ -13,6 +12,7 @@ use winit::event_loop::EventLoop;
 use winit::keyboard;
 use winit::keyboard::NamedKey::Escape;
 use winit::window::Window;
+use spark_gap::texture::{create_depth_texture, Texture};
 
 const BACKGROUND_COLOR: wgpu::Color = wgpu::Color {
     r: 0.1,

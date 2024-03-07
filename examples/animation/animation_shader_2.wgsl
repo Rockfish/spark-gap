@@ -83,5 +83,6 @@ fn get_animated_position(model: VertexInput) -> vec4<f32> {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var color = textureSample(diffuse_texture, diffuse_sampler, in.tex_coords);
+    color = vec4(0.3, 0.3, 0.3, 1.0);
     return color;
 }

@@ -103,8 +103,8 @@ impl ModelBuilder {
         let animator = Animator::new(&scene, self.bone_data_map);
 
         if !context.bind_layout_cache.contains_key(MODEL_BIND_GROUP_LAYOUT) {
-            let layout = Self::create_bind_group_layout(context);
-            context.bind_layout_cache.insert(String::from(MODEL_BIND_GROUP_LAYOUT), layout);
+            let layout = Self::create_model_bind_group_layout(context);
+            context.bind_layout_cache.insert(String::from(MODEL_BIND_GROUP_LAYOUT), layout.into());
         }
 
         let bind_group_layout = context.bind_layout_cache.get(MODEL_BIND_GROUP_LAYOUT).unwrap();
@@ -113,7 +113,7 @@ impl ModelBuilder {
         let node_transform_buffer = Self::create_transform_buffer(context, "node transform buffer", &Mat4::IDENTITY);
         let final_bones_matrices_buffer = Self::create_final_bones_buffer(context, &animator.final_bone_matrices);
 
-        let bind_group = Self::create_bind_group(
+        let bind_group = Self::create_model_bind_group(
             context,
             &bind_group_layout,
             &model_transform_buffer,
@@ -125,7 +125,7 @@ impl ModelBuilder {
             name: Rc::from(self.name),
             meshes: Rc::from(self.meshes),
             animator: animator.into(),
-            model_transform: Default::default(),
+            model_transform: Mat4::IDENTITY,
             model_transform_buffer,
             node_transform_buffer,
             final_bones_matrices_buffer,
@@ -335,7 +335,7 @@ impl ModelBuilder {
         })
     }
 
-    fn create_bind_group_layout(context: &GpuContext) -> BindGroupLayout {
+    fn create_model_bind_group_layout(context: &GpuContext) -> BindGroupLayout {
         context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
                 // 0: model transform
@@ -376,7 +376,7 @@ impl ModelBuilder {
         })
     }
 
-    fn create_bind_group(
+    fn create_model_bind_group(
         context: &GpuContext,
         bind_group_layout: &BindGroupLayout,
         model_transform: &Buffer,

@@ -9,6 +9,8 @@ use wgpu::TextureView;
 pub struct World {
     pub camera_controller: FlyCameraController,
     pub camera_handler: CameraHandler,
+    pub camera_controller_2: FlyCameraController,
+    pub camera_handler_2: CameraHandler,
     pub model: Model,
     pub model_2: Model,
     pub model_position: Vec3,

@@ -1,19 +1,26 @@
+use std::path::PathBuf;
 use image::GenericImageView;
-use spark_gap::gpu_context::GpuContext;
 use wgpu::{BindGroup, BindGroupLayout};
+use crate::error::Error;
+use crate::error::Error::ImageError;
+use crate::gpu_context::GpuContext;
 
+#[derive(Debug)]
 pub struct Texture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
 }
 
-pub fn get_texture(context: &GpuContext) -> Texture {
-    let diffuse_bytes = include_bytes!("container2.png");
-    let diffuse_image = image::load_from_memory(diffuse_bytes).unwrap();
-    let diffuse_rgba = diffuse_image.to_rgba8();
+pub fn get_texture(context: &GpuContext, file_path: impl Into<PathBuf>) -> Result<Texture, Error> {
+    let file_path = file_path.into();
+    let img = match image::open(&file_path) {
+        Ok(img) => img,
+        Err(e) => return Err(ImageError(format!("image error: {:?}  file: {:?}", e, &file_path))),
+    };
 
-    let dimensions = diffuse_image.dimensions();
+    let diffuse_rgba = img.to_rgba8();
+    let dimensions = img.dimensions();
 
     let texture_size = wgpu::Extent3d {
         width: dimensions.0,
@@ -63,11 +70,11 @@ pub fn get_texture(context: &GpuContext) -> Texture {
         ..Default::default()
     });
 
-    Texture {
+    Ok(Texture {
         texture: diffuse_texture,
         view: diffuse_texture_view,
         sampler: diffuse_sampler,
-    }
+    })
 }
 
 pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -110,8 +117,7 @@ pub fn create_depth_texture(context: &GpuContext) -> Texture {
     Texture { texture, view, sampler }
 }
 
-pub fn get_texture_bind_group(context: &GpuContext) -> (BindGroupLayout, BindGroup) {
-    let texture = get_texture(context);
+pub fn get_texture_bind_group(context: &GpuContext, texture: &Texture) -> (BindGroupLayout, BindGroup) {
 
     let texture_bind_group_layout = context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         entries: &[
