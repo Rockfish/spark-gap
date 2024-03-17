@@ -1,9 +1,9 @@
 use crate::camera::camera_handler::CameraUniform;
 use crate::gpu_context::GpuContext;
+use crate::input::Input;
 use glam::{Mat4, Quat, Vec3};
 use winit::event::MouseButton;
 use winit::keyboard::KeyCode;
-use crate::input::Input;
 
 #[derive(Debug, Clone, Copy)]
 pub struct FlyCameraController {
@@ -33,7 +33,6 @@ impl FlyCameraController {
 
     pub fn update(&mut self, input: &Input, delta_time: f32) {
         if input.mouse_button_pressed(MouseButton::Left) {
-
             let mouse_delta = input.mouse_delta();
 
             let (mut yaw, mut pitch, _roll) = self.rotation.to_euler(glam::EulerRot::YXZ);
@@ -73,13 +72,9 @@ impl FlyCameraController {
             yaw += -(mouse_delta.x * self.sensitivity).to_radians();
             pitch += -(mouse_delta.y * self.sensitivity).to_radians();
 
-            pitch = pitch.clamp(
-                -std::f32::consts::FRAC_PI_2 + 0.001,
-                std::f32::consts::FRAC_PI_2 - 0.001,
-            );
+            pitch = pitch.clamp(-std::f32::consts::FRAC_PI_2 + 0.001, std::f32::consts::FRAC_PI_2 - 0.001);
 
-            self.rotation = Quat::from_axis_angle(Vec3::Y, yaw)
-                * Quat::from_axis_angle(Vec3::X, pitch);
+            self.rotation = Quat::from_axis_angle(Vec3::Y, yaw) * Quat::from_axis_angle(Vec3::X, pitch);
             self.rotation = self.rotation.normalize();
         }
 

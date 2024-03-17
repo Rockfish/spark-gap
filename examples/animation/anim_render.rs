@@ -20,7 +20,10 @@ impl AnimRenderPass {
         let render_pipeline = create_render_pipeline(context);
         let render_pipeline_2 = create_render_pipeline_2(context);
 
-        Self { render_pipeline, render_pipeline_2 }
+        Self {
+            render_pipeline,
+            render_pipeline_2,
+        }
     }
 
     pub fn render(&self, context: &GpuContext, world: &World) {
@@ -99,10 +102,10 @@ impl AnimRenderPass {
 
             // let model_transform = Mat4::from_translation(vec3(50.0, 0.0, -100.0));
             // render_model(context, render_pass, &world.model_2, &model_transform);
-        // }
-        //
-        // {
-        //     let mut render_pass = encoder.begin_render_pass(&pass_description_2);
+            // }
+            //
+            // {
+            //     let mut render_pass = encoder.begin_render_pass(&pass_description_2);
 
             render_pass.set_pipeline(&self.render_pipeline_2);
             render_pass.set_bind_group(0, &world.camera_handler_2.bind_group, &[]);
@@ -112,7 +115,6 @@ impl AnimRenderPass {
             let model_transform = Mat4::from_translation(vec3(50.0, 0.0, -100.0));
             render_model(context, render_pass, &world.model_2, &model_transform);
         }
-
 
         context.queue.submit(Some(encoder.finish()));
         frame.present();

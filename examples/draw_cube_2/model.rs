@@ -1,7 +1,7 @@
 use crate::cube::Cube;
 use spark_gap::gpu_context::GpuContext;
-use wgpu::util::DeviceExt;
 use spark_gap::texture::{get_texture, get_texture_bind_group, Texture};
+use wgpu::util::DeviceExt;
 
 // #[repr(C)]
 // #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]

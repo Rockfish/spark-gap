@@ -1,8 +1,7 @@
-use glam::{Mat3, Quat, Vec2, Vec3};
-use winit::keyboard::KeyCode;
 use crate::input::Input;
 use crate::transform::Transform;
-
+use glam::{Mat3, Quat, Vec2, Vec3};
+use winit::keyboard::KeyCode;
 
 pub struct PerspectiveProjection {
     pub fov: f32,

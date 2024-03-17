@@ -104,7 +104,9 @@ impl ModelBuilder {
 
         if !context.bind_layout_cache.contains_key(MODEL_BIND_GROUP_LAYOUT) {
             let layout = Self::create_model_bind_group_layout(context);
-            context.bind_layout_cache.insert(String::from(MODEL_BIND_GROUP_LAYOUT), layout.into());
+            context
+                .bind_layout_cache
+                .insert(String::from(MODEL_BIND_GROUP_LAYOUT), layout.into());
         }
 
         let bind_group_layout = context.bind_layout_cache.get(MODEL_BIND_GROUP_LAYOUT).unwrap();

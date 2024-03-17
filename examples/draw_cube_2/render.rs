@@ -5,6 +5,7 @@ use spark_gap::camera::fly_camera_controller::FlyCameraController;
 use spark_gap::frame_counter::FrameCounter;
 use spark_gap::gpu_context::GpuContext;
 use spark_gap::model_mesh::ModelVertex;
+use spark_gap::texture::{create_depth_texture, Texture};
 use std::sync::Arc;
 use wgpu::{BindGroupLayout, RenderPipeline};
 use winit::event::{Event, WindowEvent};
@@ -12,7 +13,6 @@ use winit::event_loop::EventLoop;
 use winit::keyboard;
 use winit::keyboard::NamedKey::Escape;
 use winit::window::Window;
-use spark_gap::texture::{create_depth_texture, Texture};
 
 const BACKGROUND_COLOR: wgpu::Color = wgpu::Color {
     r: 0.1,

@@ -1,6 +1,6 @@
-use std::rc::Rc;
 use crate::hash_map::HashMap;
 use log::debug;
+use std::rc::Rc;
 use std::sync::Arc;
 use wgpu::BindGroupLayout;
 use winit::window::Window;

@@ -107,7 +107,9 @@ pub fn load_texture(context: &mut GpuContext, texture_path: &PathBuf, texture_co
 
     if !context.bind_layout_cache.contains_key(MATERIAL_BIND_GROUP_LAYOUT) {
         let layout = create_material_bind_group_layout(context);
-        context.bind_layout_cache.insert(String::from(MATERIAL_BIND_GROUP_LAYOUT), layout.into());
+        context
+            .bind_layout_cache
+            .insert(String::from(MATERIAL_BIND_GROUP_LAYOUT), layout.into());
     }
 
     let bind_group_layout = context.bind_layout_cache.get(MATERIAL_BIND_GROUP_LAYOUT).unwrap();

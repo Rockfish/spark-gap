@@ -1,9 +1,9 @@
-use std::path::PathBuf;
-use image::GenericImageView;
-use wgpu::{BindGroup, BindGroupLayout};
 use crate::error::Error;
 use crate::error::Error::ImageError;
 use crate::gpu_context::GpuContext;
+use image::GenericImageView;
+use std::path::PathBuf;
+use wgpu::{BindGroup, BindGroupLayout};
 
 #[derive(Debug)]
 pub struct Texture {
@@ -118,7 +118,6 @@ pub fn create_depth_texture(context: &GpuContext) -> Texture {
 }
 
 pub fn get_texture_bind_group(context: &GpuContext, texture: &Texture) -> (BindGroupLayout, BindGroup) {
-
     let texture_bind_group_layout = context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         entries: &[
             wgpu::BindGroupLayoutEntry {
