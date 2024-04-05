@@ -1,6 +1,6 @@
-use crate::run_loop::BACKGROUND_COLOR;
-use crate::world::World;
 use glam::{vec3, Mat4};
+use wgpu::{IndexFormat, RenderPass, RenderPipeline, TextureView};
+
 use spark_gap::camera::camera_handler::CAMERA_BIND_GROUP_LAYOUT;
 use spark_gap::gpu_context::GpuContext;
 use spark_gap::material::MATERIAL_BIND_GROUP_LAYOUT;
@@ -8,7 +8,9 @@ use spark_gap::model::Model;
 use spark_gap::model_builder::MODEL_BIND_GROUP_LAYOUT;
 use spark_gap::model_mesh::ModelVertex;
 use spark_gap::texture_config::TextureType;
-use wgpu::{IndexFormat, Operations, RenderPass, RenderPipeline, TextureView};
+
+use crate::run_loop::BACKGROUND_COLOR;
+use crate::world::World;
 
 pub struct AnimRenderPass {
     render_pipeline: RenderPipeline,

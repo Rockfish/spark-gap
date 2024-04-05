@@ -54,3 +54,7 @@ path = "examples/draw_cube_2/main.rs"
 [[example]]
 name = "animation"
 path = "examples/animation/main.rs"
+
+[[example]]
+name = "shadows"
+path = "examples/shadows/main.rs"

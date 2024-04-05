@@ -71,7 +71,7 @@ impl GpuContext {
             .find(|f| f.is_srgb())
             .unwrap_or(surface_caps.formats[0]);
 
-        let config = wgpu::SurfaceConfiguration {
+        let mut config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
             width: size.width,
@@ -82,6 +82,8 @@ impl GpuContext {
             view_formats: vec![],
         };
 
+        let view_format = config.format.add_srgb_suffix();
+        config.view_formats.push(view_format);
         surface.configure(&device, &config);
 
         Self {

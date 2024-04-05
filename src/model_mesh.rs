@@ -1,6 +1,5 @@
 use crate::gpu_context::GpuContext;
 use crate::material::Material;
-use glam::u32;
 use glam::*;
 use std::mem;
 use std::rc::Rc;
