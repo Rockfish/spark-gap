@@ -14,7 +14,7 @@ use spark_gap::gpu_context::GpuContext;
 use spark_gap::texture::create_depth_texture;
 
 use crate::model::Model;
-use crate::render::World;
+use crate::world::World;
 
 const VIEW_PORT_WIDTH: i32 = 1500;
 const VIEW_PORT_HEIGHT: i32 = 1000;
@@ -42,6 +42,7 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
                         context.resize(new_size);
                         camera_handler.update_camera(&context, &mut camera_controller);
                         depth_texture = create_depth_texture(&context);
+                        world.resize(&context);
                         context.window.request_redraw();
                     }
                     WindowEvent::RedrawRequested => {

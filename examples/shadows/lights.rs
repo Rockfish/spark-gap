@@ -1,0 +1,135 @@
+use crate::render_passes::MAX_LIGHTS;
+use bytemuck::{Pod, Zeroable};
+use spark_gap::gpu_context::GpuContext;
+use std::f32::consts;
+use std::mem;
+use std::ops::Range;
+use wgpu::{Buffer, Texture};
+
+pub struct Lights {
+    pub lights: Vec<Light>,
+    pub light_storage_buffer: Buffer,
+    pub lights_are_dirty: bool,
+}
+
+pub struct Light {
+    pub position: glam::Vec3,
+    pub color: wgpu::Color,
+    pub fov: f32,
+    pub depth: Range<f32>,
+    pub target_view: wgpu::TextureView,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+pub struct LightUniform {
+    projection: [[f32; 4]; 4],
+    position: [f32; 4],
+    color: [f32; 4],
+}
+
+impl Light {
+    pub fn to_uniform(&self) -> LightUniform {
+        let view = glam::Mat4::look_at_rh(self.position, glam::Vec3::ZERO, glam::Vec3::Z);
+        let projection = glam::Mat4::perspective_rh(self.fov * consts::PI / 180., 1.0, self.depth.start, self.depth.end);
+        let view_proj = projection * view;
+        LightUniform {
+            projection: view_proj.to_cols_array_2d(),
+            position: [self.position.x, self.position.y, self.position.z, 1.0],
+            color: [self.color.r as f32, self.color.g as f32, self.color.b as f32, 1.0],
+        }
+    }
+}
+
+impl Lights {
+    pub fn new(gpu_context: &mut GpuContext, shadow_texture: &Texture) -> Self {
+
+        let mut shadow_target_views = (0..2)
+            .map(|i| {
+                Some(shadow_texture.create_view(&wgpu::TextureViewDescriptor {
+                    label: Some("shadow"),
+                    format: None,
+                    dimension: Some(wgpu::TextureViewDimension::D2),
+                    aspect: wgpu::TextureAspect::All,
+                    base_mip_level: 0,
+                    mip_level_count: None,
+                    base_array_layer: i as u32,
+                    array_layer_count: Some(1),
+                }))
+            })
+            .collect::<Vec<_>>();
+
+        let lights = vec![
+            Light {
+                position: glam::Vec3::new(7.0, -5.0, 10.0),
+                color: wgpu::Color {
+                    r: 0.5,
+                    g: 1.0,
+                    b: 0.5,
+                    a: 1.0,
+                },
+                fov: 60.0,
+                depth: 1.0..20.0,
+                target_view: shadow_target_views[0].take().unwrap(),
+            },
+            Light {
+                position: glam::Vec3::new(-5.0, 7.0, 10.0),
+                color: wgpu::Color {
+                    r: 1.0,
+                    g: 0.5,
+                    b: 0.5,
+                    a: 1.0,
+                },
+                fov: 45.0,
+                depth: 1.0..20.0,
+                target_view: shadow_target_views[1].take().unwrap(),
+            },
+        ];
+
+        let light_storage_buffer = create_light_storage_buffer(gpu_context);
+
+        Lights {
+            lights,
+            light_storage_buffer,
+            lights_are_dirty: true,
+        }
+    }
+
+    pub fn update(&mut self, context: &GpuContext) {
+        if self.lights_are_dirty {
+            self.lights_are_dirty = false;
+            for (i, light) in self.lights.iter().enumerate() {
+                context.queue.write_buffer(
+                    &self.light_storage_buffer,
+                    (i * mem::size_of::<LightUniform>()) as wgpu::BufferAddress,
+                    bytemuck::bytes_of(&light.to_uniform()),
+                );
+            }
+        }
+    }
+}
+
+pub fn create_light_storage_buffer(gpu_context: &mut GpuContext) -> Buffer {
+    let supports_storage_resources = gpu_context
+        .adapter
+        .get_downlevel_capabilities()
+        .flags
+        .contains(wgpu::DownlevelFlags::VERTEX_STORAGE)
+        && gpu_context.device.limits().max_storage_buffers_per_shader_stage > 0;
+
+    let light_uniform_size = (MAX_LIGHTS * mem::size_of::<LightUniform>()) as wgpu::BufferAddress;
+
+    let light_storage_buf = gpu_context.device.create_buffer(&wgpu::BufferDescriptor {
+        label: None,
+        size: light_uniform_size,
+        usage: if supports_storage_resources {
+            wgpu::BufferUsages::STORAGE
+        } else {
+            wgpu::BufferUsages::UNIFORM
+        } | wgpu::BufferUsages::COPY_SRC
+            | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+
+    light_storage_buf
+}

@@ -1,11 +1,12 @@
 mod cube;
-mod light;
+mod lights;
 mod model;
-mod render;
+mod world;
 mod render_passes;
-mod run;
+mod run_loop;
+mod entity;
 
-use crate::run::run;
+use crate::run_loop::run;
 use std::sync::Arc;
 use winit::event_loop::EventLoop;
 

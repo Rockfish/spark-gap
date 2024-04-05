@@ -1,12 +1,13 @@
 use std::mem;
+use bytemuck::{Pod, Zeroable};
 
-use wgpu::{BindGroupLayout, Buffer, Sampler, ShaderModule, TextureView};
 use wgpu::util::DeviceExt;
+use wgpu::{BindGroup, BindGroupLayout, Buffer, RenderPipeline, Sampler, ShaderModule, TextureView};
 
 use spark_gap::gpu_context::GpuContext;
 
-use crate::light::{Light, LightRaw};
-use crate::render::{generate_matrix, get_vertex_buffer_layout, GlobalUniforms};
+use crate::lights::{Light, Lights, LightUniform};
+use crate::world::{get_projection_view_matrix, get_vertex_buffer_layout};
 
 pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 pub const SHADOW_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -18,17 +19,23 @@ pub const SHADOW_SIZE: wgpu::Extent3d = wgpu::Extent3d {
     depth_or_array_layers: MAX_LIGHTS as u32,
 };
 
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+pub struct GlobalUniforms {
+    pub proj: [[f32; 4]; 4],
+    pub num_lights: [u32; 4],
+}
+
 pub struct Pass {
-    pub(crate) pipeline: wgpu::RenderPipeline,
-    pub(crate) bind_group: wgpu::BindGroup,
-    pub(crate) uniform_buf: wgpu::Buffer,
+    pub(crate) pipeline: RenderPipeline,
+    pub(crate) bind_group: BindGroup,
+    pub(crate) uniform_buf: Buffer,
 }
 
 pub fn create_forward_pass(
     context: &mut GpuContext,
     local_bind_group_layout: &BindGroupLayout,
-    lights: &[Light],
-    light_storage_buffer: &Buffer,
+    lights: &Lights,
     shader: &ShaderModule,
     shadow_view: &TextureView,
     shadow_sampler: &Sampler,
@@ -40,18 +47,7 @@ pub fn create_forward_pass(
         .contains(wgpu::DownlevelFlags::VERTEX_STORAGE)
         && context.device.limits().max_storage_buffers_per_shader_stage > 0;
 
-    let light_uniform_size = (MAX_LIGHTS * mem::size_of::<LightRaw>()) as wgpu::BufferAddress;
-
-    // let light_storage_buf = context.device.create_buffer(&wgpu::BufferDescriptor {
-    //     label: None,
-    //     size: light_uniform_size,
-    //     usage: if supports_storage_resources {
-    //         wgpu::BufferUsages::STORAGE
-    //     } else {
-    //         wgpu::BufferUsages::UNIFORM
-    //     } | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::COPY_DST,
-    //     mapped_at_creation: false,
-    // });
+    let light_uniform_size = (MAX_LIGHTS * mem::size_of::<LightUniform>()) as wgpu::BufferAddress;
 
     // Create pipeline layout
     let bind_group_layout = context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -106,11 +102,11 @@ pub fn create_forward_pass(
         push_constant_ranges: &[],
     });
 
-    let mx_total = generate_matrix(context.config.width as f32 / context.config.height as f32);
+    let mx_total = get_projection_view_matrix(context.config.width as f32 / context.config.height as f32);
 
     let forward_uniforms = GlobalUniforms {
         proj: mx_total.to_cols_array_2d(),
-        num_lights: [lights.len() as u32, 0, 0, 0],
+        num_lights: [lights.lights.len() as u32, 0, 0, 0],
     };
 
     let uniform_buf = context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -129,7 +125,7 @@ pub fn create_forward_pass(
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: light_storage_buffer.as_entire_binding(),
+                resource: lights.light_storage_buffer.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 2,
