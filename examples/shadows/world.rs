@@ -6,9 +6,9 @@ use spark_gap::gpu_context::GpuContext;
 use spark_gap::texture::DEPTH_FORMAT;
 
 use crate::cube::Vertex;
-use crate::entity::Entities;
-use crate::lights::{Lights, LightUniform};
-use crate::render_passes::{create_forward_pass, create_shadow_pass, ForwardPass, ShaderParams, SHADOW_FORMAT, SHADOW_SIZE, ShadowPass};
+use crate::entities::Entities;
+use crate::lights::Lights;
+use crate::render_passes::{create_forward_pass, create_shadow_pass, ForwardPass, SHADOW_FORMAT, SHADOW_SIZE, ShadowPass};
 
 pub struct World {
     pub entities: Entities,
@@ -60,11 +60,11 @@ impl World {
 
         let forward_depth = create_depth_texture(gpu_context);
 
-        let shadow_pass = create_shadow_pass(gpu_context, &entities.local_bind_group_layout, &shader);
+        let shadow_pass = create_shadow_pass(gpu_context, &entities.entity_bind_group_layout, &shader);
 
         let forward_pass = create_forward_pass(
             gpu_context,
-            &entities.local_bind_group_layout,
+            &entities.entity_bind_group_layout,
             &lights,
             &shader,
             &shadow_view,
@@ -119,15 +119,12 @@ impl World {
             //     mem::size_of::<[[f32; 4]; 4]>() as wgpu::BufferAddress, // 64,
             // );
 
-            let params = ShaderParams{
-                projection_view: self.lights.lights[0].projection_view.to_cols_array_2d(),
-                num_lights: [self.lights.lights.len() as u32, 0, 0, 0]
-            };
+            let projection_view= light.projection_view.to_cols_array_2d();
 
             context.queue.write_buffer(
-                    &self.shadow_pass.shadow_params_buffer,
-                    0,
-                    bytemuck::bytes_of(&params));
+                &self.shadow_pass.projection_view_buffer,
+                0,
+                bytemuck::bytes_of(&projection_view));
 
             encoder.insert_debug_marker("render entities");
             {

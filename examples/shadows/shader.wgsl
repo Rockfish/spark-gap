@@ -2,10 +2,10 @@
 const AMBIENT_COLOR: vec3<f32> = vec3<f32>(0.05, 0.05, 0.05);
 const MAX_LIGHTS: u32 = 10u;
 
-struct ShaderParams {
-    projection_view: mat4x4<f32>,
-    num_lights: vec4<u32>,
-};
+//struct ShaderParams {
+//    projection_view: mat4x4<f32>,
+//    num_lights: vec4<u32>,
+//};
 
 struct Light {
     projection_view: mat4x4<f32>,
@@ -18,18 +18,17 @@ struct Entity {
     color: vec4<f32>,
 };
 
-// this changes location depending on the pass.
-// The buffer either the shadow params buffer or the forward params buffer.
-@group(0) @binding(0) var<uniform> params: ShaderParams;
+@group(0) @binding(0) var<uniform> projection_view: mat4x4<f32>;
+@group(0) @binding(1) var<uniform> num_lights: u32;
 
-@group(0) @binding(1) var<uniform> lights_uniform: array<Light, MAX_LIGHTS>;
-@group(0) @binding(2) var shadow_texture: texture_depth_2d_array;
-@group(0) @binding(3) var shadow_sampler: sampler_comparison;
+@group(0) @binding(2) var<uniform> lights_uniform: array<Light, MAX_LIGHTS>;
+@group(0) @binding(3) var shadow_texture: texture_depth_2d_array;
+@group(0) @binding(4) var shadow_sampler: sampler_comparison;
 
 @group(1) @binding(0) var<uniform> entity_data: Entity;
 
 @vertex fn vs_bake(@location(0) position: vec4<i32>) -> @builtin(position) vec4<f32> {
-    return params.projection_view * entity_data.world * vec4<f32>(position);
+    return projection_view * entity_data.world * vec4<f32>(position);
 }
 
 struct VertexOutput {
@@ -44,7 +43,7 @@ struct VertexOutput {
     var result: VertexOutput;
     result.world_normal = mat3x3<f32>(w[0].xyz, w[1].xyz, w[2].xyz) * vec3<f32>(normal.xyz);
     result.world_position = world_pos;
-    result.proj_position = params.projection_view * world_pos;
+    result.proj_position = projection_view * world_pos;
     return result;
 }
 
@@ -68,7 +67,7 @@ fn fetch_shadow(light_id: u32, homogeneous_coords: vec4<f32>) -> f32 {
     let normal = normalize(vertex.world_normal);
     var color: vec3<f32> = AMBIENT_COLOR;
     
-    for (var i = 0u; i < min(params.num_lights.x, MAX_LIGHTS); i += 1u) {
+    for (var i = 0u; i < min(num_lights, MAX_LIGHTS); i += 1u) {
         let light = lights_uniform[i];
         let shadow = fetch_shadow(i, light.projection_view * vertex.world_position);
         let light_dir = normalize(light.position.xyz - vertex.world_position.xyz);

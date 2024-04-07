@@ -1,4 +1,3 @@
-use crate::render_passes::MAX_LIGHTS;
 use bytemuck::{Pod, Zeroable};
 use spark_gap::gpu_context::GpuContext;
 use std::f32::consts;
@@ -6,6 +5,8 @@ use std::mem;
 use std::ops::Range;
 use glam::Mat4;
 use wgpu::{Buffer, Texture, TextureView};
+
+pub const MAX_LIGHTS: usize = 10;
 
 pub struct Lights {
     pub lights: Vec<Light>,

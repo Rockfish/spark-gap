@@ -36,7 +36,7 @@ pub struct CubeDesc {
 pub struct Entities {
     pub entity_uniform_buf: Buffer,
     pub entities: Vec<Entity>,
-    pub local_bind_group_layout: BindGroupLayout,
+    pub entity_bind_group_layout: BindGroupLayout,
     pub entity_bind_group: BindGroup,
 }
 
@@ -155,7 +155,7 @@ impl Entities {
         Entities {
             entity_uniform_buf,
             entities,
-            local_bind_group_layout,
+            entity_bind_group_layout: local_bind_group_layout,
             entity_bind_group,
         }
     }

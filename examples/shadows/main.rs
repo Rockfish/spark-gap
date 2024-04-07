@@ -4,7 +4,7 @@ mod model;
 mod world;
 mod render_passes;
 mod run_loop;
-mod entity;
+mod entities;
 
 use crate::run_loop::run;
 use std::sync::Arc;
