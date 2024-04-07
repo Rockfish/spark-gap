@@ -1,12 +1,12 @@
 use std::mem;
-use bytemuck::{Pod, Zeroable};
 
-use wgpu::util::DeviceExt;
+use bytemuck::{Pod, Zeroable};
 use wgpu::{BindGroup, BindGroupLayout, Buffer, RenderPipeline, Sampler, ShaderModule, TextureView};
+use wgpu::util::DeviceExt;
 
 use spark_gap::gpu_context::GpuContext;
 
-use crate::lights::{Light, Lights, LightUniform};
+use crate::lights::{Lights, LightUniform};
 use crate::world::{get_projection_view_matrix, get_vertex_buffer_layout};
 
 pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -21,209 +21,65 @@ pub const SHADOW_SIZE: wgpu::Extent3d = wgpu::Extent3d {
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
-pub struct GlobalUniforms {
-    pub proj: [[f32; 4]; 4],
+pub struct ShaderParams {
+    pub projection_view: [[f32; 4]; 4],
     pub num_lights: [u32; 4],
 }
 
-pub struct Pass {
-    pub(crate) pipeline: RenderPipeline,
-    pub(crate) bind_group: BindGroup,
-    pub(crate) uniform_buf: Buffer,
+pub struct ShadowPass {
+    pub pipeline: RenderPipeline,
+    pub bind_group: BindGroup,
+    pub shadow_params_buffer: Buffer,
 }
 
-pub fn create_forward_pass(
-    context: &mut GpuContext,
-    local_bind_group_layout: &BindGroupLayout,
-    lights: &Lights,
-    shader: &ShaderModule,
-    shadow_view: &TextureView,
-    shadow_sampler: &Sampler,
-) -> Pass {
-    let supports_storage_resources = context
-        .adapter
-        .get_downlevel_capabilities()
-        .flags
-        .contains(wgpu::DownlevelFlags::VERTEX_STORAGE)
-        && context.device.limits().max_storage_buffers_per_shader_stage > 0;
+pub struct ForwardPass {
+    pub pipeline: RenderPipeline,
+    pub bind_group: BindGroup,
+    pub forward_params_buffer: Buffer,
+}
 
-    let light_uniform_size = (MAX_LIGHTS * mem::size_of::<LightUniform>()) as wgpu::BufferAddress;
+pub fn create_shadow_pass(context: &mut GpuContext, local_bind_group_layout: &BindGroupLayout, shader: &ShaderModule) -> ShadowPass {
 
-    // Create pipeline layout
-    let bind_group_layout = context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        entries: &[
-            wgpu::BindGroupLayoutEntry {
-                binding: 0, // global
-                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: wgpu::BufferSize::new(mem::size_of::<GlobalUniforms>() as _),
-                },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 1, // lights
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: if supports_storage_resources {
-                        wgpu::BufferBindingType::Storage { read_only: true }
-                    } else {
-                        wgpu::BufferBindingType::Uniform
-                    },
-                    has_dynamic_offset: false,
-                    min_binding_size: wgpu::BufferSize::new(light_uniform_size),
-                },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 2,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Texture {
-                    multisampled: false,
-                    sample_type: wgpu::TextureSampleType::Depth,
-                    view_dimension: wgpu::TextureViewDimension::D2Array,
-                },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 3,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
-                count: None,
-            },
-        ],
+    let shadow_params_uniform_size = mem::size_of::<ShaderParams>() as wgpu::BufferAddress;
+
+    let shadow_params_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
         label: None,
-    });
-
-    let pipeline_layout = context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: Some("main"),
-        bind_group_layouts: &[&bind_group_layout, &local_bind_group_layout],
-        push_constant_ranges: &[],
-    });
-
-    let mx_total = get_projection_view_matrix(context.config.width as f32 / context.config.height as f32);
-
-    let forward_uniforms = GlobalUniforms {
-        proj: mx_total.to_cols_array_2d(),
-        num_lights: [lights.lights.len() as u32, 0, 0, 0],
-    };
-
-    let uniform_buf = context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Uniform Buffer"),
-        contents: bytemuck::bytes_of(&forward_uniforms),
+        size: shadow_params_uniform_size,
         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
     });
 
-    // Create bind group
-    let bind_group = context.device.create_bind_group(&wgpu::BindGroupDescriptor {
-        layout: &bind_group_layout,
-        entries: &[
-            wgpu::BindGroupEntry {
-                binding: 0,
-                resource: uniform_buf.as_entire_binding(),
-            },
-            wgpu::BindGroupEntry {
-                binding: 1,
-                resource: lights.light_storage_buffer.as_entire_binding(),
-            },
-            wgpu::BindGroupEntry {
-                binding: 2,
-                resource: wgpu::BindingResource::TextureView(shadow_view),
-            },
-            wgpu::BindGroupEntry {
-                binding: 3,
-                resource: wgpu::BindingResource::Sampler(shadow_sampler),
-            },
-        ],
-        label: None,
-    });
-
-    // Create the render pipeline
-    let pipeline = context.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("main"),
-        layout: Some(&pipeline_layout),
-        vertex: wgpu::VertexState {
-            module: shader,
-            entry_point: "vs_main",
-            buffers: &[get_vertex_buffer_layout()],
-        },
-        fragment: Some(wgpu::FragmentState {
-            module: shader,
-            entry_point: if supports_storage_resources {
-                "fs_main"
-            } else {
-                "fs_main_without_storage"
-            },
-            targets: &[Some(context.config.view_formats[0].into())],
-        }),
-        primitive: wgpu::PrimitiveState {
-            front_face: wgpu::FrontFace::Ccw,
-            cull_mode: Some(wgpu::Face::Back),
-            ..Default::default()
-        },
-        depth_stencil: Some(wgpu::DepthStencilState {
-            format: DEPTH_FORMAT,
-            depth_write_enabled: true,
-            depth_compare: wgpu::CompareFunction::Less,
-            stencil: wgpu::StencilState::default(),
-            bias: wgpu::DepthBiasState::default(),
-        }),
-        multisample: wgpu::MultisampleState::default(),
-        multiview: None,
-    });
-
-    Pass {
-        pipeline,
-        bind_group,
-        uniform_buf,
-    }
-}
-
-pub fn create_shadow_pass(context: &mut GpuContext, local_bind_group_layout: &BindGroupLayout, shader: &ShaderModule) -> Pass {
-    let uniform_size = mem::size_of::<GlobalUniforms>() as wgpu::BufferAddress;
-
-    // Create pipeline layout
     let bind_group_layout = context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: None,
         entries: &[wgpu::BindGroupLayoutEntry {
-            binding: 0, // global
+            binding: 0, // shader params
             visibility: wgpu::ShaderStages::VERTEX,
             ty: wgpu::BindingType::Buffer {
                 ty: wgpu::BufferBindingType::Uniform,
                 has_dynamic_offset: false,
-                min_binding_size: wgpu::BufferSize::new(uniform_size),
+                min_binding_size: wgpu::BufferSize::new(shadow_params_uniform_size),
             },
             count: None,
         }],
     });
 
-    let pipeline_layout = context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: Some("shadow"),
-        bind_group_layouts: &[&bind_group_layout, &local_bind_group_layout],
-        push_constant_ranges: &[],
-    });
-
-    let uniform_buf = context.device.create_buffer(&wgpu::BufferDescriptor {
-        label: None,
-        size: uniform_size,
-        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
-
-    // Create bind group
     let bind_group = context.device.create_bind_group(&wgpu::BindGroupDescriptor {
         layout: &bind_group_layout,
         entries: &[wgpu::BindGroupEntry {
             binding: 0,
-            resource: uniform_buf.as_entire_binding(),
+            resource: shadow_params_buffer.as_entire_binding(),
         }],
         label: None,
     });
 
-    // Create the render pipeline
+    let pipeline_layout = context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("shadow pipeline layout"),
+        bind_group_layouts: &[&bind_group_layout, &local_bind_group_layout],
+        push_constant_ranges: &[],
+    });
+
     let pipeline = context.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("shadow"),
+        label: Some("shadow pipeline"),
         layout: Some(&pipeline_layout),
         vertex: wgpu::VertexState {
             module: &shader,
@@ -253,9 +109,148 @@ pub fn create_shadow_pass(context: &mut GpuContext, local_bind_group_layout: &Bi
         multiview: None,
     });
 
-    Pass {
+    ShadowPass {
         pipeline,
         bind_group,
-        uniform_buf,
+        shadow_params_buffer,
     }
 }
+
+
+pub fn create_forward_pass(
+    context: &mut GpuContext,
+    local_bind_group_layout: &BindGroupLayout,
+    lights: &Lights,
+    shader: &ShaderModule,
+    shadow_view: &TextureView,
+    shadow_sampler: &Sampler,
+) -> ForwardPass {
+
+    let light_uniform_size = (MAX_LIGHTS * mem::size_of::<LightUniform>()) as wgpu::BufferAddress;
+
+    let bind_group_layout = context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        entries: &[
+            // shader params
+            wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: wgpu::BufferSize::new(mem::size_of::<ShaderParams>() as _),
+                },
+                count: None,
+            },
+            // lights
+            wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: wgpu::BufferSize::new(light_uniform_size),
+                },
+                count: None,
+            },
+            // shadow texture
+            wgpu::BindGroupLayoutEntry {
+                binding: 2,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    multisampled: false,
+                    sample_type: wgpu::TextureSampleType::Depth,
+                    view_dimension: wgpu::TextureViewDimension::D2Array,
+                },
+                count: None,
+            },
+            // shadow sampler
+            wgpu::BindGroupLayoutEntry {
+                binding: 3,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
+                count: None,
+            },
+        ],
+        label: None,
+    });
+
+    let pipeline_layout = context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("main"),
+        bind_group_layouts: &[&bind_group_layout, &local_bind_group_layout],
+        push_constant_ranges: &[],
+    });
+
+    let project_view_matrix = get_projection_view_matrix(context.config.width as f32 / context.config.height as f32);
+
+    let forward_params_uniform = ShaderParams {
+        projection_view: project_view_matrix.to_cols_array_2d(),
+        num_lights: [lights.lights.len() as u32, 0, 0, 0],
+    };
+
+    let forward_params_buffer = context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("shader params buffer"),
+        contents: bytemuck::bytes_of(&forward_params_uniform),
+        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+    });
+
+    // Create bind group
+    let bind_group = context.device.create_bind_group(&wgpu::BindGroupDescriptor {
+        layout: &bind_group_layout,
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: forward_params_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: lights.light_storage_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: wgpu::BindingResource::TextureView(shadow_view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: wgpu::BindingResource::Sampler(shadow_sampler),
+            },
+        ],
+        label: None,
+    });
+
+    // Create the render pipeline
+    let pipeline = context.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("forward pipeline"),
+        layout: Some(&pipeline_layout),
+        vertex: wgpu::VertexState {
+            module: shader,
+            entry_point: "vs_main",
+            buffers: &[get_vertex_buffer_layout()],
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: shader,
+            entry_point: "fs_main",
+            targets: &[Some(context.config.view_formats[0].into())],
+        }),
+        primitive: wgpu::PrimitiveState {
+            front_face: wgpu::FrontFace::Ccw,
+            cull_mode: Some(wgpu::Face::Back),
+            ..Default::default()
+        },
+        depth_stencil: Some(wgpu::DepthStencilState {
+            format: DEPTH_FORMAT,
+            depth_write_enabled: true,
+            depth_compare: wgpu::CompareFunction::Less,
+            stencil: wgpu::StencilState::default(),
+            bias: wgpu::DepthBiasState::default(),
+        }),
+        multisample: wgpu::MultisampleState::default(),
+        multiview: None,
+    });
+
+    ForwardPass {
+        pipeline,
+        bind_group,
+        forward_params_buffer,
+    }
+}
+

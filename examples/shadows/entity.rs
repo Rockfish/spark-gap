@@ -43,24 +43,6 @@ pub struct Entities {
 impl Entities {
     pub fn new(gpu_context: &mut GpuContext) -> Self {
 
-        let entity_uniform_size = mem::size_of::<EntityUniforms>() as wgpu::BufferAddress;
-
-        let num_entities = 1 + get_cube_description().len() as wgpu::BufferAddress;
-
-        // Make the `uniform_alignment` >= `entity_uniform_size` and aligned to `min_uniform_buffer_offset_alignment`.
-        let uniform_alignment = {
-            let alignment = gpu_context.device.limits().min_uniform_buffer_offset_alignment as wgpu::BufferAddress;
-            align_to(entity_uniform_size, alignment)
-        };
-
-        // Note: dynamic uniform offsets also have to be aligned to `Limits::min_uniform_buffer_offset_alignment`.
-        let entity_uniform_buf = gpu_context.device.create_buffer(&wgpu::BufferDescriptor {
-            label: None,
-            size: num_entities * uniform_alignment,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
         let (cube_vertex_data, cube_index_data) = create_cube();
 
         let cube_vertex_buf = Arc::new(gpu_context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -89,6 +71,8 @@ impl Entities {
             usage: wgpu::BufferUsages::INDEX,
         });
 
+        let entity_uniform_size = mem::size_of::<EntityUniforms>() as wgpu::BufferAddress;
+
         let local_bind_group_layout = gpu_context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
@@ -101,6 +85,24 @@ impl Entities {
                 count: None,
             }],
             label: None,
+        });
+
+        let cube_descriptions = get_cube_descriptions();
+
+        let num_entities = 1 + cube_descriptions.len() as wgpu::BufferAddress;
+
+        // Make the `uniform_alignment` >= `entity_uniform_size` and aligned to `min_uniform_buffer_offset_alignment`.
+        let uniform_alignment = {
+            let alignment = gpu_context.device.limits().min_uniform_buffer_offset_alignment as wgpu::BufferAddress;
+            align_to(entity_uniform_size, alignment)
+        };
+
+        // Note: dynamic uniform offsets also have to be aligned to `Limits::min_uniform_buffer_offset_alignment`.
+        let entity_uniform_buf = gpu_context.device.create_buffer(&wgpu::BufferDescriptor {
+            label: None,
+            size: num_entities * uniform_alignment,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
         });
 
         let entity_bind_group = gpu_context.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -131,7 +133,7 @@ impl Entities {
             }
         }];
 
-        for (i, cube) in get_cube_description().iter().enumerate() {
+        for (i, cube) in cube_descriptions.iter().enumerate() {
             let mx_world = glam::Mat4::from_scale_rotation_translation(
                 glam::Vec3::splat(cube.scale),
                 glam::Quat::from_axis_angle(cube.offset.normalize(), cube.angle * consts::PI / 180.),
@@ -183,7 +185,7 @@ impl Entities {
     }
 }
 
-pub fn get_cube_description() -> [CubeDesc; 4] {
+pub fn get_cube_descriptions() -> [CubeDesc; 4] {
 
     let cube_descriptions = [
         CubeDesc {

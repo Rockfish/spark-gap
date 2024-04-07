@@ -8,16 +8,16 @@ use spark_gap::texture::DEPTH_FORMAT;
 use crate::cube::Vertex;
 use crate::entity::Entities;
 use crate::lights::{Lights, LightUniform};
-use crate::render_passes::{create_forward_pass, create_shadow_pass, Pass, SHADOW_FORMAT, SHADOW_SIZE};
+use crate::render_passes::{create_forward_pass, create_shadow_pass, ForwardPass, ShaderParams, SHADOW_FORMAT, SHADOW_SIZE, ShadowPass};
 
 pub struct World {
     pub entities: Entities,
     pub lights: Lights,
     pub shader: ShaderModule,
-    pub shadow_pass: Pass,
+    pub shadow_pass: ShadowPass,
     pub shadow_view: TextureView,
     pub shadow_sampler: Sampler,
-    pub forward_pass: Pass,
+    pub forward_pass: ForwardPass,
     pub forward_depth: TextureView,
 }
 
@@ -84,11 +84,13 @@ impl World {
     }
 
     pub fn resize(&mut self, gpu_context: &GpuContext) {
+
         let mx_total = get_projection_view_matrix(gpu_context.config.width as f32 / gpu_context.config.height as f32);
         let mx_ref: &[f32; 16] = mx_total.as_ref();
+
         gpu_context
             .queue
-            .write_buffer(&self.forward_pass.uniform_buf, 0, bytemuck::cast_slice(mx_ref));
+            .write_buffer(&self.forward_pass.forward_params_buffer, 0, bytemuck::cast_slice(mx_ref));
 
         self.forward_depth = create_depth_texture(gpu_context);
     }
@@ -109,18 +111,28 @@ impl World {
 
             // The light uniform buffer already has the projection,
             // let's just copy it over to the shadow uniform buffer.
-            encoder.copy_buffer_to_buffer(
-                &self.lights.light_storage_buffer,
-                (i * mem::size_of::<LightUniform>()) as wgpu::BufferAddress,
-                &self.shadow_pass.uniform_buf,
-                0,
-                64,
-            );
+            // encoder.copy_buffer_to_buffer(
+            //     &self.lights.light_storage_buffer,
+            //     (i * mem::size_of::<LightUniform>()) as wgpu::BufferAddress,
+            //     &self.shadow_pass.shadow_params_buffer,
+            //     0,
+            //     mem::size_of::<[[f32; 4]; 4]>() as wgpu::BufferAddress, // 64,
+            // );
+
+            let params = ShaderParams{
+                projection_view: self.lights.lights[0].projection_view.to_cols_array_2d(),
+                num_lights: [self.lights.lights.len() as u32, 0, 0, 0]
+            };
+
+            context.queue.write_buffer(
+                    &self.shadow_pass.shadow_params_buffer,
+                    0,
+                    bytemuck::bytes_of(&params));
 
             encoder.insert_debug_marker("render entities");
             {
                 let depth_stencil_attachment = wgpu::RenderPassDepthStencilAttachment {
-                    view: &light.target_view,
+                    view: &light.shadow_view,
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(1.0),
                         store: wgpu::StoreOp::Store,
@@ -152,7 +164,9 @@ impl World {
 
         encoder.pop_debug_group(); // shadow pass
 
+        //
         // forward pass
+        //
         encoder.push_debug_group("forward rendering pass");
 
         let frame = context
@@ -199,8 +213,10 @@ impl World {
 
             for entity in &self.entities.entities {
                 pass.set_bind_group(1, &self.entities.entity_bind_group, &[entity.uniform_offset]);
-                pass.set_index_buffer(entity.index_buf.slice(..), entity.index_format);
+
                 pass.set_vertex_buffer(0, entity.vertex_buf.slice(..));
+                pass.set_index_buffer(entity.index_buf.slice(..), entity.index_format);
+
                 pass.draw_indexed(0..entity.index_count as u32, 0, 0..1);
             }
         }
@@ -240,7 +256,7 @@ pub fn get_projection_view_matrix(aspect_ratio: f32) -> glam::Mat4 {
     projection * view
 }
 
-fn create_depth_texture(gpu_context: &GpuContext) -> wgpu::TextureView {
+fn create_depth_texture(gpu_context: &GpuContext) -> TextureView {
     let depth_texture = gpu_context.device.create_texture(&wgpu::TextureDescriptor {
         size: wgpu::Extent3d {
             width: gpu_context.config.width,
