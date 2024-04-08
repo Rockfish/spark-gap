@@ -24,7 +24,7 @@ pub struct Light {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
 pub struct LightUniform {
     projection: [[f32; 4]; 4],
     position: [f32; 4],
@@ -87,6 +87,8 @@ impl Lights {
                     position: [light.position.x, light.position.y, light.position.z, 1.0],
                     color: [light.color.r as f32, light.color.g as f32, light.color.b as f32, 1.0],
                 };
+
+                // println!("light_uniform: {:#?}", &light_uniform);
 
                 context.queue.write_buffer(
                     &self.light_storage_buffer,

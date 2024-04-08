@@ -19,8 +19,8 @@ struct Entity {
 };
 
 @group(0) @binding(0) var<uniform> projection_view: mat4x4<f32>;
-@group(0) @binding(1) var<uniform> num_lights: u32;
 
+@group(0) @binding(1) var<uniform> num_lights: u32;
 @group(0) @binding(2) var<uniform> lights_uniform: array<Light, MAX_LIGHTS>;
 @group(0) @binding(3) var shadow_texture: texture_depth_2d_array;
 @group(0) @binding(4) var shadow_sampler: sampler_comparison;
@@ -40,10 +40,13 @@ struct VertexOutput {
 @vertex fn vs_main(@location(0) position: vec4<i32>, @location(1) normal: vec4<i32>) -> VertexOutput {
     let w = entity_data.world;
     let world_pos = entity_data.world * vec4<f32>(position);
+
     var result: VertexOutput;
+
     result.world_normal = mat3x3<f32>(w[0].xyz, w[1].xyz, w[2].xyz) * vec3<f32>(normal.xyz);
     result.world_position = world_pos;
     result.proj_position = projection_view * world_pos;
+
     return result;
 }
 

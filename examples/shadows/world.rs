@@ -1,4 +1,5 @@
 use std::{borrow::Cow, f32::consts, iter, mem};
+use glam::Mat4;
 
 use wgpu::{Sampler, ShaderModule, TextureView};
 
@@ -7,7 +8,7 @@ use spark_gap::texture::DEPTH_FORMAT;
 
 use crate::cube::Vertex;
 use crate::entities::Entities;
-use crate::lights::Lights;
+use crate::lights::{Lights, LightUniform};
 use crate::render_passes::{create_forward_pass, create_shadow_pass, ForwardPass, SHADOW_FORMAT, SHADOW_SIZE, ShadowPass};
 
 pub struct World {
@@ -90,7 +91,7 @@ impl World {
 
         gpu_context
             .queue
-            .write_buffer(&self.forward_pass.forward_params_buffer, 0, bytemuck::cast_slice(mx_ref));
+            .write_buffer(&self.forward_pass.projection_view_buffer, 0, bytemuck::cast_slice(mx_ref));
 
         self.forward_depth = create_depth_texture(gpu_context);
     }
@@ -106,25 +107,32 @@ impl World {
 
         encoder.push_debug_group("shadow passes");
 
-        for (i, light) in self.lights.lights.iter().enumerate() {
+        for (i, light) in self.lights.lights.iter().enumerate()
+        {
             encoder.push_debug_group(&format!("shadow pass {} (light at position {:?})", i, light.position));
 
+            // this could also be done with instances
+
             // The light uniform buffer already has the projection,
-            // let's just copy it over to the shadow uniform buffer.
-            // encoder.copy_buffer_to_buffer(
-            //     &self.lights.light_storage_buffer,
-            //     (i * mem::size_of::<LightUniform>()) as wgpu::BufferAddress,
-            //     &self.shadow_pass.shadow_params_buffer,
-            //     0,
-            //     mem::size_of::<[[f32; 4]; 4]>() as wgpu::BufferAddress, // 64,
-            // );
-
-            let projection_view= light.projection_view.to_cols_array_2d();
-
-            context.queue.write_buffer(
+            // so just copy it over to the shadow uniform buffer.
+            //
+            // This is a command that will occur in sync with the queue ensuring
+            // the right data is in the buffer at the time of actual rendering
+            encoder.copy_buffer_to_buffer(
+                &self.lights.light_storage_buffer,
+                (i * mem::size_of::<LightUniform>()) as wgpu::BufferAddress,
                 &self.shadow_pass.projection_view_buffer,
                 0,
-                bytemuck::bytes_of(&projection_view));
+                mem::size_of::<Mat4>() as wgpu::BufferAddress, // 64,
+            );
+
+            // Using write_buffer doesn't work here because updating the buffer will be out of sync with the
+            // queue commands so that when the rendering actually occurs the buffer may not
+            // have the right data at the moment of rendering.
+            // context.queue.write_buffer(
+            //     &self.shadow_pass.projection_view_buffer,
+            //     0,
+            //     bytemuck::bytes_of(&light.projection_view.to_cols_array()));
 
             encoder.insert_debug_marker("render entities");
             {
@@ -150,8 +158,8 @@ impl World {
 
                 for entity in &self.entities.entities {
                     pass.set_bind_group(1, &self.entities.entity_bind_group, &[entity.uniform_offset]);
-                    pass.set_index_buffer(entity.index_buf.slice(..), entity.index_format);
                     pass.set_vertex_buffer(0, entity.vertex_buf.slice(..));
+                    pass.set_index_buffer(entity.index_buf.slice(..), entity.index_format);
                     pass.draw_indexed(0..entity.index_count as u32, 0, 0..1);
                 }
             }

@@ -35,17 +35,10 @@ pub struct ShadowPass {
 pub struct ForwardPass {
     pub pipeline: RenderPipeline,
     pub bind_group: BindGroup,
-    pub forward_params_buffer: Buffer,
+    pub projection_view_buffer: Buffer,
 }
 
 pub fn create_shadow_pass(context: &mut GpuContext, entity_bind_group_layout: &BindGroupLayout, shader: &ShaderModule) -> ShadowPass {
-
-    let projection_view_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
-        label: None,
-        size: mem::size_of::<Mat4>() as wgpu::BufferAddress,
-        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
 
     let bind_group_layout = context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: None,
@@ -59,6 +52,13 @@ pub fn create_shadow_pass(context: &mut GpuContext, entity_bind_group_layout: &B
             },
             count: None,
         }],
+    });
+
+    let projection_view_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("shadow projection view buffer"),
+        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        size: mem::size_of::<Mat4>() as wgpu::BufferAddress,
+        mapped_at_creation: false,
     });
 
     let bind_group = context.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -114,7 +114,6 @@ pub fn create_shadow_pass(context: &mut GpuContext, entity_bind_group_layout: &B
     }
 }
 
-
 pub fn create_forward_pass(
     context: &mut GpuContext,
     entity_bind_group_layout: &BindGroupLayout,
@@ -128,7 +127,7 @@ pub fn create_forward_pass(
 
     let bind_group_layout = context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         entries: &[
-            // shader params
+            // projection_view
             wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
@@ -187,11 +186,12 @@ pub fn create_forward_pass(
 
     let projection_view_buffer = context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("projection_view buffer"),
-        contents: bytemuck::bytes_of(&project_view_matrix.to_cols_array_2d()),
+        contents: bytemuck::cast_slice(&project_view_matrix.to_cols_array()),
         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
 
-    let num_lights = lights.lights.len();
+    let num_lights = lights.lights.len() as u32;
+    // let num_lights = 1_u32;
 
     let num_lights_buffer = context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("num_lights buffer"),
@@ -266,7 +266,7 @@ pub fn create_forward_pass(
     ForwardPass {
         pipeline,
         bind_group,
-        forward_params_buffer: projection_view_buffer,
+        projection_view_buffer,
     }
 }
 
