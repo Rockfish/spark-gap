@@ -47,7 +47,7 @@ impl GpuContext {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    required_features: wgpu::Features::empty(),
+                    required_features: wgpu::Features::ADDRESS_MODE_CLAMP_TO_BORDER,
                     // required_limits: wgpu::Limits::downlevel_webgl2_defaults().using_resolution(adapter.limits()),
                     required_limits: wgpu::Limits {
                         max_bind_groups: desired_max_bind_groups,

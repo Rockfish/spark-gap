@@ -1,46 +1,38 @@
 use std::{borrow::Cow, f32::consts, iter, mem};
-use glam::Mat4;
 
-use wgpu::{Sampler, ShaderModule, TextureView};
+use wgpu::{ShaderModule, TextureView};
 
 use spark_gap::gpu_context::GpuContext;
 use spark_gap::texture::DEPTH_FORMAT;
 
 use crate::cube::Vertex;
 use crate::entities::Entities;
-use crate::lights::{Lights, LightUniform};
-use crate::render_passes::{create_forward_pass, create_shadow_pass, ForwardPass, SHADOW_FORMAT, SHADOW_SIZE, ShadowPass};
+use crate::forward_pass::{create_forward_pass, ForwardPass};
+use crate::lights::{Lights, MAX_LIGHTS};
+use crate::shadow_pass::{create_shadow_pass, SHADOW_FORMAT, ShadowPass};
 
 pub struct World {
     pub entities: Entities,
     pub lights: Lights,
     pub shader: ShaderModule,
     pub shadow_pass: ShadowPass,
-    pub shadow_view: TextureView,
-    pub shadow_sampler: Sampler,
     pub forward_pass: ForwardPass,
     pub forward_depth: TextureView,
 }
 
 impl World {
     pub fn new(gpu_context: &mut GpuContext) -> Self {
-
         let entities = Entities::new(gpu_context);
 
-        let shadow_sampler = gpu_context.device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("shadow"),
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            compare: Some(wgpu::CompareFunction::LessEqual),
-            ..Default::default()
-        });
+        // One texture layer per light
+        let shadow_texture_array_size = wgpu::Extent3d {
+            width: 512,
+            height: 512,
+            depth_or_array_layers: MAX_LIGHTS as u32,
+        };
 
-        let shadow_texture = gpu_context.device.create_texture(&wgpu::TextureDescriptor {
-            size: SHADOW_SIZE,
+        let shadow_texture_array = gpu_context.device.create_texture(&wgpu::TextureDescriptor {
+            size: shadow_texture_array_size,
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -50,9 +42,7 @@ impl World {
             view_formats: &[],
         });
 
-        let shadow_view = shadow_texture.create_view(&wgpu::TextureViewDescriptor::default());
-
-        let lights = Lights::new(gpu_context, &shadow_texture);
+        let lights = Lights::new(gpu_context, &shadow_texture_array);
 
         let shader = gpu_context.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
@@ -61,15 +51,14 @@ impl World {
 
         let forward_depth = create_depth_texture(gpu_context);
 
-        let shadow_pass = create_shadow_pass(gpu_context, &entities.entity_bind_group_layout, &shader);
+        let shadow_pass = create_shadow_pass(gpu_context, &lights, &entities.entity_bind_group_layout, &shader);
 
         let forward_pass = create_forward_pass(
             gpu_context,
             &entities.entity_bind_group_layout,
             &lights,
             &shader,
-            &shadow_view,
-            &shadow_sampler,
+            &shadow_texture_array,
         );
 
         World {
@@ -77,15 +66,12 @@ impl World {
             lights,
             shader,
             shadow_pass,
-            shadow_view,
-            shadow_sampler,
             forward_pass,
             forward_depth,
         }
     }
 
     pub fn resize(&mut self, gpu_context: &GpuContext) {
-
         let mx_total = get_projection_view_matrix(gpu_context.config.width as f32 / gpu_context.config.height as f32);
         let mx_ref: &[f32; 16] = mx_total.as_ref();
 
@@ -97,7 +83,6 @@ impl World {
     }
 
     pub fn render(&mut self, context: &GpuContext) {
-
         self.entities.update(context);
         self.lights.update(context);
 
@@ -107,32 +92,10 @@ impl World {
 
         encoder.push_debug_group("shadow passes");
 
-        for (i, light) in self.lights.lights.iter().enumerate()
-        {
+        for (i, light) in self.lights.lights.iter().enumerate() {
+            let i = i as u32;
+
             encoder.push_debug_group(&format!("shadow pass {} (light at position {:?})", i, light.position));
-
-            // this could also be done with instances
-
-            // The light uniform buffer already has the projection,
-            // so just copy it over to the shadow uniform buffer.
-            //
-            // This is a command that will occur in sync with the queue ensuring
-            // the right data is in the buffer at the time of actual rendering
-            encoder.copy_buffer_to_buffer(
-                &self.lights.light_storage_buffer,
-                (i * mem::size_of::<LightUniform>()) as wgpu::BufferAddress,
-                &self.shadow_pass.projection_view_buffer,
-                0,
-                mem::size_of::<Mat4>() as wgpu::BufferAddress, // 64,
-            );
-
-            // Using write_buffer doesn't work here because updating the buffer will be out of sync with the
-            // queue commands so that when the rendering actually occurs the buffer may not
-            // have the right data at the moment of rendering.
-            // context.queue.write_buffer(
-            //     &self.shadow_pass.projection_view_buffer,
-            //     0,
-            //     bytemuck::bytes_of(&light.projection_view.to_cols_array()));
 
             encoder.insert_debug_marker("render entities");
             {
@@ -158,9 +121,15 @@ impl World {
 
                 for entity in &self.entities.entities {
                     pass.set_bind_group(1, &self.entities.entity_bind_group, &[entity.uniform_offset]);
+
                     pass.set_vertex_buffer(0, entity.vertex_buf.slice(..));
+                    pass.set_vertex_buffer(1, self.shadow_pass.instance_ids_buffer.slice(..));
+
                     pass.set_index_buffer(entity.index_buf.slice(..), entity.index_format);
-                    pass.draw_indexed(0..entity.index_count as u32, 0, 0..1);
+
+                    // the instance id is used as an index into the array of lights in the shader to
+                    // get the projection view to use for the current light when writing to the light's shadow_view
+                    pass.draw_indexed(0..entity.index_count as u32, 0, i..(i + 1));
                 }
             }
 

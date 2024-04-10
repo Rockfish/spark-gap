@@ -1,12 +1,11 @@
+use crate::cube::{create_cube, create_plane};
+use bytemuck::{Pod, Zeroable};
+use spark_gap::gpu_context::GpuContext;
 use std::f32::consts;
 use std::mem;
 use std::sync::Arc;
-use bytemuck::{Pod, Zeroable};
-use wgpu::{BindGroup, BindGroupLayout, Buffer};
 use wgpu::util::{align_to, DeviceExt};
-use spark_gap::gpu_context::GpuContext;
-use crate::cube::{create_cube, create_plane};
-
+use wgpu::{BindGroup, BindGroupLayout, Buffer};
 
 pub struct Entity {
     pub mx_world: glam::Mat4,
@@ -42,7 +41,6 @@ pub struct Entities {
 
 impl Entities {
     pub fn new(gpu_context: &mut GpuContext) -> Self {
-
         let (cube_vertex_data, cube_index_data) = create_cube();
 
         let cube_vertex_buf = Arc::new(gpu_context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -73,7 +71,7 @@ impl Entities {
 
         let entity_uniform_size = mem::size_of::<EntityUniforms>() as wgpu::BufferAddress;
 
-        let local_bind_group_layout = gpu_context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        let entity_bind_group_layout = gpu_context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
@@ -106,7 +104,7 @@ impl Entities {
         });
 
         let entity_bind_group = gpu_context.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &local_bind_group_layout,
+            layout: &entity_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
@@ -155,7 +153,7 @@ impl Entities {
         Entities {
             entity_uniform_buf,
             entities,
-            entity_bind_group_layout: local_bind_group_layout,
+            entity_bind_group_layout,
             entity_bind_group,
         }
     }
@@ -186,7 +184,6 @@ impl Entities {
 }
 
 pub fn get_cube_descriptions() -> [CubeDesc; 4] {
-
     let cube_descriptions = [
         CubeDesc {
             offset: glam::Vec3::new(-2.0, -2.0, 2.0),

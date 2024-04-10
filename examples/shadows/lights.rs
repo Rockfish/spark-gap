@@ -1,9 +1,9 @@
 use bytemuck::{Pod, Zeroable};
+use glam::Mat4;
 use spark_gap::gpu_context::GpuContext;
 use std::f32::consts;
 use std::mem;
 use std::ops::Range;
-use glam::Mat4;
 use wgpu::{Buffer, Texture, TextureView};
 
 pub const MAX_LIGHTS: usize = 10;
@@ -32,8 +32,7 @@ pub struct LightUniform {
 }
 
 impl Lights {
-    pub fn new(gpu_context: &mut GpuContext, shadow_texture: &Texture) -> Self {
-
+    pub fn new(gpu_context: &mut GpuContext, shadow_texture_array: &Texture) -> Self {
         let lights = vec![
             Light {
                 position: glam::Vec3::new(7.0, -5.0, 10.0),
@@ -46,7 +45,7 @@ impl Lights {
                 fov: 60.0,
                 depth: 1.0..20.0,
                 projection_view: Mat4::IDENTITY,
-                shadow_view: create_shadow_texture_view(shadow_texture, 0),
+                shadow_view: create_shadow_texture_view(shadow_texture_array, 0),
             },
             Light {
                 position: glam::Vec3::new(-5.0, 7.0, 10.0),
@@ -59,7 +58,7 @@ impl Lights {
                 fov: 45.0,
                 depth: 1.0..20.0,
                 projection_view: Mat4::IDENTITY,
-                shadow_view: create_shadow_texture_view(shadow_texture, 1),
+                shadow_view: create_shadow_texture_view(shadow_texture_array, 1),
             },
         ];
 
@@ -77,7 +76,6 @@ impl Lights {
             self.lights_are_dirty = false;
 
             for (i, light) in self.lights.iter_mut().enumerate() {
-
                 let view = Mat4::look_at_rh(light.position, glam::Vec3::ZERO, glam::Vec3::Z);
                 let projection = Mat4::perspective_rh(light.fov * consts::PI / 180., 1.0, light.depth.start, light.depth.end);
                 light.projection_view = projection * view;
@@ -87,8 +85,6 @@ impl Lights {
                     position: [light.position.x, light.position.y, light.position.z, 1.0],
                     color: [light.color.r as f32, light.color.g as f32, light.color.b as f32, 1.0],
                 };
-
-                // println!("light_uniform: {:#?}", &light_uniform);
 
                 context.queue.write_buffer(
                     &self.light_storage_buffer,
@@ -101,7 +97,6 @@ impl Lights {
 }
 
 pub fn create_light_storage_buffer(gpu_context: &mut GpuContext) -> Buffer {
-
     let light_uniform_size = (MAX_LIGHTS * mem::size_of::<LightUniform>()) as wgpu::BufferAddress;
 
     let light_storage_buf = gpu_context.device.create_buffer(&wgpu::BufferDescriptor {

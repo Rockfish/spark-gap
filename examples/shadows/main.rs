@@ -1,12 +1,15 @@
+extern crate core;
+
 mod cube;
+mod entities;
+mod forward_pass;
 mod lights;
 mod model;
+mod event_loop;
+mod shadow_pass;
 mod world;
-mod render_passes;
-mod run_loop;
-mod entities;
 
-use crate::run_loop::run;
+use crate::event_loop::run;
 use std::sync::Arc;
 use winit::event_loop::EventLoop;
 
