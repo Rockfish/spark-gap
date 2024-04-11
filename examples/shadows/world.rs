@@ -26,8 +26,8 @@ impl World {
 
         // One texture layer per light
         let shadow_texture_array_size = wgpu::Extent3d {
-            width: 512,
-            height: 512,
+            width: 2048, //1024,
+            height: 2048, //1024,
             depth_or_array_layers: MAX_LIGHTS as u32,
         };
 

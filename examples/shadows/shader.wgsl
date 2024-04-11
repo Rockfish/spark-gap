@@ -105,36 +105,65 @@ fn shadow_calculation(light_id: u32, bias: f32, frag_light_space: vec4<f32>, off
 //
 //    for (var y: i32 = -kernelSize; y <= kernelSize; y += 1) {
 //        for (var x: i32 = -kernelSize; x <= kernelSize; x += 1) {
+//
 //            let sampleUV = uv + vec2<f32>(f32(x), f32(y)) * step;
+//
 //            shadow += textureSampleCompareLevel(shadow_texture_array, shadow_sampler, vec3<f32>(sampleUV, f32(layer)), refDepth, mipLevel);
 //        }
 //    }
 //    return shadow / f32((2 * kernelSize + 1) * (2 * kernelSize + 1));
 //}
 
+// Function to calculate slope-scaled depth bias based on the depth gradient
+ fn calculateSlopeBias(depth: f32) -> f32 {
+    // Compute partial derivatives of the depth
+    let depth_dx = dpdx(depth);
+    let depth_dy = dpdy(depth);
+
+    // Calculate the maximum change in depth
+    let slope = max(abs(depth_dx), abs(depth_dy));
+
+    // Define the scale factor for the bias, adjust as necessary
+    let scale: f32 = 2.0;
+
+    // Compute the slope-scaled bias
+    let slopeBias = scale * slope;
+    return slopeBias;
+}
+
 @fragment fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
 
     let normal = normalize(vertex.world_normal);
+
     var color: vec3<f32> = AMBIENT_COLOR;
 
     let dimensions = textureDimensions(shadow_texture_array, 0).xy;
     let texelSize = vec2<f32>(1.0, 1.0) / vec2<f32>(f32(dimensions.x), f32(dimensions.y));
     
     for (var i = 0u; i < min(num_lights, MAX_LIGHTS); i += 1u) {
-        let light = lights_uniform[i];
-
         //let shadow = fetch_shadow(i, light.projection_view * vertex.world_position);
-        let bias = 0.00001;
+
+        let light = lights_uniform[i];
+        let light_dir = normalize(light.position.xyz - vertex.world_position.xyz);
+        var shadow_coords = light.projection_view * vertex.world_position;
+
+        let constant_bias: f32 = 0.005; // A predefined constant bias
+        var bias: f32 = max(0.05 * (1.0 - dot(normal, light_dir)), 0.005);
+        var slope_bias = calculateSlopeBias(shadow_coords.z);
+
+        bias = constant_bias + bias + slope_bias;
+
         var shadow = 0.0;
 
         for (var x = -1; x <= 1; x += 1) {
             for (var y = -1; y <= 1; y += 1) {
                 let offset = vec2<f32>(f32(x), f32(y)) * texelSize;
-                shadow = shadow_calculation(i, bias, light.projection_view * vertex.world_position, offset);
+                shadow += shadow_calculation(i, bias, shadow_coords, offset);
             }
         }
 
-        let light_dir = normalize(light.position.xyz - vertex.world_position.xyz);
+        shadow = shadow / 9; // average of neighbors
+
         let diffuse = max(0.0, dot(normal, light_dir));
         color += shadow * diffuse * light.color.xyz;
     }
