@@ -1,6 +1,6 @@
 use std::{borrow::Cow, f32::consts, iter, mem};
 
-use wgpu::{ShaderModule, TextureView};
+use wgpu::TextureView;
 
 use spark_gap::gpu_context::GpuContext;
 use spark_gap::texture::DEPTH_FORMAT;
@@ -9,12 +9,11 @@ use crate::cube::Vertex;
 use crate::entities::Entities;
 use crate::forward_pass::{create_forward_pass, ForwardPass};
 use crate::lights::{Lights, MAX_LIGHTS};
-use crate::shadow_pass::{create_shadow_pass, SHADOW_FORMAT, ShadowPass};
+use crate::shadow_pass::{create_shadow_pass, ShadowPass, SHADOW_FORMAT};
 
 pub struct World {
     pub entities: Entities,
     pub lights: Lights,
-    pub shader: ShaderModule,
     pub shadow_pass: ShadowPass,
     pub forward_pass: ForwardPass,
     pub forward_depth: TextureView,
@@ -26,8 +25,8 @@ impl World {
 
         // One texture layer per light
         let shadow_texture_array_size = wgpu::Extent3d {
-            width: 2048, //1024,
-            height: 2048, //1024,
+            width: 2048,
+            height: 2048,
             depth_or_array_layers: MAX_LIGHTS as u32,
         };
 
@@ -64,7 +63,6 @@ impl World {
         World {
             entities,
             lights,
-            shader,
             shadow_pass,
             forward_pass,
             forward_depth,
@@ -123,8 +121,6 @@ impl World {
                     pass.set_bind_group(1, &self.entities.entity_bind_group, &[entity.uniform_offset]);
 
                     pass.set_vertex_buffer(0, entity.vertex_buf.slice(..));
-                    pass.set_vertex_buffer(1, self.shadow_pass.instance_ids_buffer.slice(..));
-
                     pass.set_index_buffer(entity.index_buf.slice(..), entity.index_format);
 
                     // the instance id is used as an index into the array of lights in the shader to
@@ -202,7 +198,6 @@ impl World {
 }
 
 pub fn get_vertex_buffer_layout() -> wgpu::VertexBufferLayout<'static> {
-    use std::mem;
     wgpu::VertexBufferLayout {
         array_stride: mem::size_of::<Vertex>() as wgpu::BufferAddress,
         step_mode: wgpu::VertexStepMode::Vertex,

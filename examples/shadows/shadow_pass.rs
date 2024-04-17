@@ -1,20 +1,16 @@
 use std::mem;
 
-use wgpu::{BindGroup, BindGroupLayout, Buffer, RenderPipeline, ShaderModule};
-use wgpu::util::DeviceExt;
+use wgpu::{BindGroup, BindGroupLayout, RenderPipeline, ShaderModule};
 
 use spark_gap::gpu_context::GpuContext;
 
-use crate::lights::{Lights, LightUniform, MAX_LIGHTS};
+use crate::lights::{LightUniform, Lights, MAX_LIGHTS};
 use crate::world::get_vertex_buffer_layout;
 
 pub const SHADOW_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
-
-
 pub struct ShadowPass {
     pub pipeline: RenderPipeline,
-    pub instance_ids_buffer: Buffer,
     pub bind_group: BindGroup,
 }
 
@@ -52,24 +48,6 @@ pub fn create_shadow_pass(
         label: None,
     });
 
-    let mut instance_ids: Vec<u32> = (0_u32..MAX_LIGHTS as u32).collect();
-
-    let instance_ids_buffer = context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("light indexes"),
-        contents: bytemuck::cast_slice(instance_ids.as_slice()),
-        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-    });
-
-    let instance_ids_description = wgpu::VertexBufferLayout {
-        array_stride: mem::size_of::<u32>() as wgpu::BufferAddress,
-        step_mode: wgpu::VertexStepMode::Instance,
-        attributes: &[wgpu::VertexAttribute {
-            offset: 0,
-            shader_location: 2,
-            format: wgpu::VertexFormat::Uint32,
-        }],
-    };
-
     let pipeline_layout = context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some("shadow pipeline layout"),
         bind_group_layouts: &[&bind_group_layout, &entity_bind_group_layout],
@@ -82,7 +60,7 @@ pub fn create_shadow_pass(
         vertex: wgpu::VertexState {
             module: &shader,
             entry_point: "vs_shadow",
-            buffers: &[get_vertex_buffer_layout(), instance_ids_description],
+            buffers: &[get_vertex_buffer_layout()],
         },
         fragment: None,
         primitive: wgpu::PrimitiveState {
@@ -107,9 +85,5 @@ pub fn create_shadow_pass(
         multiview: None,
     });
 
-    ShadowPass {
-        pipeline,
-        instance_ids_buffer,
-        bind_group,
-    }
+    ShadowPass { pipeline, bind_group }
 }

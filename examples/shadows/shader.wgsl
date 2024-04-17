@@ -23,7 +23,7 @@ struct Entity {
 
 @group(1) @binding(0) var<uniform> entity_data: Entity;
 
-@vertex fn vs_shadow(@location(0) position: vec4<i32>, @location(2) index: u32) -> @builtin(position) vec4<f32> {
+@vertex fn vs_shadow(@location(0) position: vec4<i32>, @builtin(instance_index) index: u32) -> @builtin(position) vec4<f32> {
     let light = lights_uniform[index];
     return light.projection_view * entity_data.world * vec4<f32>(position);
 }

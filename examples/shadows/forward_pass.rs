@@ -1,12 +1,12 @@
 use std::mem;
 
 use glam::Mat4;
-use wgpu::{BindGroup, BindGroupLayout, Buffer, RenderPipeline, ShaderModule, Texture};
 use wgpu::util::DeviceExt;
+use wgpu::{BindGroup, BindGroupLayout, Buffer, RenderPipeline, ShaderModule, Texture};
 
 use spark_gap::gpu_context::GpuContext;
 
-use crate::lights::{Lights, LightUniform, MAX_LIGHTS};
+use crate::lights::{LightUniform, Lights, MAX_LIGHTS};
 use crate::world::{get_projection_view_matrix, get_vertex_buffer_layout};
 
 pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -24,7 +24,6 @@ pub fn create_forward_pass(
     shader: &ShaderModule,
     shadow_texture_array: &Texture,
 ) -> ForwardPass {
-
     let light_uniform_size = (MAX_LIGHTS * mem::size_of::<LightUniform>()) as wgpu::BufferAddress;
 
     let bind_group_layout = context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {

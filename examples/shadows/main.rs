@@ -2,10 +2,9 @@ extern crate core;
 
 mod cube;
 mod entities;
+mod event_loop;
 mod forward_pass;
 mod lights;
-mod model;
-mod event_loop;
 mod shadow_pass;
 mod world;
 

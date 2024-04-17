@@ -20,7 +20,7 @@ pub struct Entity {
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
-pub struct EntityUniforms {
+pub struct EntityUniform {
     pub model: [[f32; 4]; 4],
     pub color: [f32; 4],
 }
@@ -41,20 +41,6 @@ pub struct Entities {
 
 impl Entities {
     pub fn new(gpu_context: &mut GpuContext) -> Self {
-        let (cube_vertex_data, cube_index_data) = create_cube();
-
-        let cube_vertex_buf = Arc::new(gpu_context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Cubes Vertex Buffer"),
-            contents: bytemuck::cast_slice(&cube_vertex_data),
-            usage: wgpu::BufferUsages::VERTEX,
-        }));
-
-        let cube_index_buf = Arc::new(gpu_context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Cubes Index Buffer"),
-            contents: bytemuck::cast_slice(&cube_index_data),
-            usage: wgpu::BufferUsages::INDEX,
-        }));
-
         let (plane_vertex_data, plane_index_data) = create_plane(7);
 
         let plane_vertex_buf = gpu_context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -69,7 +55,21 @@ impl Entities {
             usage: wgpu::BufferUsages::INDEX,
         });
 
-        let entity_uniform_size = mem::size_of::<EntityUniforms>() as wgpu::BufferAddress;
+        let (cube_vertex_data, cube_index_data) = create_cube();
+
+        let cube_vertex_buf = Arc::new(gpu_context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Cubes Vertex Buffer"),
+            contents: bytemuck::cast_slice(&cube_vertex_data),
+            usage: wgpu::BufferUsages::VERTEX,
+        }));
+
+        let cube_index_buf = Arc::new(gpu_context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Cubes Index Buffer"),
+            contents: bytemuck::cast_slice(&cube_index_data),
+            usage: wgpu::BufferUsages::INDEX,
+        }));
+
+        let entity_uniform_size = mem::size_of::<EntityUniform>() as wgpu::BufferAddress;
 
         let entity_bind_group_layout = gpu_context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[wgpu::BindGroupLayoutEntry {
@@ -165,7 +165,7 @@ impl Entities {
                 let rotation = glam::Mat4::from_rotation_x(entity.rotation_speed * consts::PI / 180.);
                 entity.mx_world *= rotation;
             }
-            let data = EntityUniforms {
+            let data = EntityUniform {
                 model: entity.mx_world.to_cols_array_2d(),
                 color: [
                     entity.color.r as f32,

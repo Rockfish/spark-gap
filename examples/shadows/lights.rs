@@ -1,10 +1,12 @@
-use bytemuck::{Pod, Zeroable};
-use glam::Mat4;
-use spark_gap::gpu_context::GpuContext;
 use std::f32::consts;
 use std::mem;
 use std::ops::Range;
+
+use bytemuck::{Pod, Zeroable};
+use glam::Mat4;
 use wgpu::{Buffer, Texture, TextureView};
+
+use spark_gap::gpu_context::GpuContext;
 
 pub const MAX_LIGHTS: usize = 10;
 
