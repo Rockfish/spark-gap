@@ -24,6 +24,8 @@ pub mod texture;
 pub mod texture_config;
 pub mod transform;
 pub mod utils;
+pub mod small_mesh;
+pub mod buffers;
 
 pub const SIZE_OF_FLOAT: usize = mem::size_of::<f32>();
 pub const SIZE_OF_VEC2: usize = mem::size_of::<Vec2>();

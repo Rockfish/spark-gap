@@ -106,3 +106,17 @@ impl GpuContext {
         self.surface.configure(&self.device, &self.config);
     }
 }
+
+pub fn get_or_create_bind_group_layout(
+    context: &mut GpuContext,
+    layout_name: &str,
+    create_func: fn(&GpuContext, &str) -> BindGroupLayout,
+) -> Rc<BindGroupLayout> {
+    if !context.bind_layout_cache.contains_key(layout_name) {
+        let layout = create_func(context, layout_name);
+        context.bind_layout_cache.insert(String::from(layout_name), layout.into());
+    }
+
+    context.bind_layout_cache.get(layout_name).unwrap().clone()
+}
+

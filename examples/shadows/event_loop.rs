@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use winit::event::{Event, WindowEvent};
+use winit::event::{ElementState, Event, WindowEvent};
 use winit::event_loop::EventLoop;
 use winit::keyboard;
-use winit::keyboard::NamedKey::Escape;
+use winit::keyboard::NamedKey::{Escape, Space};
 use winit::window::Window;
 
 use spark_gap::frame_counter::FrameCounter;
@@ -36,6 +36,9 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
                     WindowEvent::KeyboardInput { event, .. } => {
                         if event.logical_key == keyboard::Key::Named(Escape) {
                             target.exit()
+                        }
+                        if  event.state == ElementState::Pressed && event.logical_key == keyboard::Key::Named(Space) {
+                            world.show_shadows = !world.show_shadows;
                         }
                     }
                     WindowEvent::CloseRequested => target.exit(),

@@ -1,52 +1,58 @@
 use std::{borrow::Cow, f32::consts, iter, mem};
 
 use wgpu::TextureView;
+use spark_gap::buffers::update_mat4_buffer;
 
 use spark_gap::gpu_context::GpuContext;
 use spark_gap::texture::DEPTH_FORMAT;
 
 use crate::cube::Vertex;
+use crate::debug_shadow::{create_shadow_map_material, shadow_render_debug, ShadowMaterial};
 use crate::entities::Entities;
 use crate::forward_pass::{create_forward_pass, ForwardPass};
 use crate::lights::{Lights, MAX_LIGHTS};
-use crate::shadow_pass::{create_shadow_pass, ShadowPass, SHADOW_FORMAT};
+use crate::shadow_pass::{create_shadow_pass, ShadowPass};
 
 pub struct World {
     pub entities: Entities,
     pub lights: Lights,
+    pub shadow_material: ShadowMaterial,
     pub shadow_pass: ShadowPass,
     pub forward_pass: ForwardPass,
     pub forward_depth: TextureView,
+    pub show_shadows: bool,
 }
 
 impl World {
     pub fn new(gpu_context: &mut GpuContext) -> Self {
         let entities = Entities::new(gpu_context);
 
-        // One texture layer per light
-        let shadow_texture_array_size = wgpu::Extent3d {
-            width: 2048,
-            height: 2048,
-            depth_or_array_layers: MAX_LIGHTS as u32,
-        };
-
-        let shadow_texture_array = gpu_context.device.create_texture(&wgpu::TextureDescriptor {
-            size: shadow_texture_array_size,
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: SHADOW_FORMAT,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-            label: None,
-            view_formats: &[],
-        });
-
-        let lights = Lights::new(gpu_context, &shadow_texture_array);
-
         let shader = gpu_context.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("shader.wgsl"))),
         });
+
+        // One texture layer per light
+        // let shadow_texture_array_size = wgpu::Extent3d {
+        //     width: 2048,
+        //     height: 2048,
+        //     depth_or_array_layers: MAX_LIGHTS as u32,
+        // };
+        //
+        // let shadow_texture_array = gpu_context.device.create_texture(&wgpu::TextureDescriptor {
+        //     size: shadow_texture_array_size,
+        //     mip_level_count: 1,
+        //     sample_count: 1,
+        //     dimension: wgpu::TextureDimension::D2,
+        //     format: wgpu::TextureFormat::Depth32Float,
+        //     usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+        //     label: None,
+        //     view_formats: &[],
+        // });
+
+        let shadow_material = create_shadow_map_material(gpu_context);
+
+        let lights = Lights::new(gpu_context, &shadow_material.texture);
 
         let forward_depth = create_depth_texture(gpu_context);
 
@@ -57,27 +63,18 @@ impl World {
             &entities.entity_bind_group_layout,
             &lights,
             &shader,
-            &shadow_texture_array,
+            &shadow_material.texture
         );
 
         World {
             entities,
             lights,
+            shadow_material,
             shadow_pass,
             forward_pass,
             forward_depth,
+            show_shadows: false,
         }
-    }
-
-    pub fn resize(&mut self, gpu_context: &GpuContext) {
-        let mx_total = get_projection_view_matrix(gpu_context.config.width as f32 / gpu_context.config.height as f32);
-        let mx_ref: &[f32; 16] = mx_total.as_ref();
-
-        gpu_context
-            .queue
-            .write_buffer(&self.forward_pass.projection_view_buffer, 0, bytemuck::cast_slice(mx_ref));
-
-        self.forward_depth = create_depth_texture(gpu_context);
     }
 
     pub fn render(&mut self, context: &GpuContext) {
@@ -144,11 +141,11 @@ impl World {
             .get_current_texture()
             .expect("Failed to acquire next swap chain texture");
 
-        let texture_view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let frame_view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         {
             let color_attachment = wgpu::RenderPassColorAttachment {
-                view: &texture_view,
+                view: &frame_view,
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -178,22 +175,45 @@ impl World {
                 occlusion_query_set: None,
             });
 
-            pass.set_pipeline(&self.forward_pass.pipeline);
-            pass.set_bind_group(0, &self.forward_pass.bind_group, &[]);
+            // display shadow map
+            if self.show_shadows == true {
+                let project_view_matrix = get_projection_view_matrix(context.config.width as f32 / context.config.height as f32);
+                // update_mat4_buffer(context, &self.shadow_material.projection_view_buffer, &self.lights.lights[1].projection_view);
+                update_mat4_buffer(context, &self.shadow_material.projection_view_buffer, &project_view_matrix);
 
-            for entity in &self.entities.entities {
-                pass.set_bind_group(1, &self.entities.entity_bind_group, &[entity.uniform_offset]);
+                pass.set_pipeline(&self.shadow_material.debug_texture_pipeline);
+                pass = shadow_render_debug(pass, &self.shadow_material);
+            }
+            else {
+                // forward pass
+                pass.set_pipeline(&self.forward_pass.pipeline);
+                pass.set_bind_group(0, &self.forward_pass.bind_group, &[]);
 
-                pass.set_vertex_buffer(0, entity.vertex_buf.slice(..));
-                pass.set_index_buffer(entity.index_buf.slice(..), entity.index_format);
+                for entity in &self.entities.entities {
+                    pass.set_bind_group(1, &self.entities.entity_bind_group, &[entity.uniform_offset]);
 
-                pass.draw_indexed(0..entity.index_count as u32, 0, 0..1);
+                    pass.set_vertex_buffer(0, entity.vertex_buf.slice(..));
+                    pass.set_index_buffer(entity.index_buf.slice(..), entity.index_format);
+
+                    pass.draw_indexed(0..entity.index_count as u32, 0, 0..1);
+                }
             }
         }
         encoder.pop_debug_group();
 
         context.queue.submit(iter::once(encoder.finish()));
         frame.present();
+    }
+
+    pub fn resize(&mut self, gpu_context: &GpuContext) {
+        let mx_total = get_projection_view_matrix(gpu_context.config.width as f32 / gpu_context.config.height as f32);
+        let mx_ref: &[f32; 16] = mx_total.as_ref();
+
+        gpu_context
+            .queue
+            .write_buffer(&self.forward_pass.projection_view_buffer, 0, bytemuck::cast_slice(mx_ref));
+
+        self.forward_depth = create_depth_texture(gpu_context);
     }
 }
 
@@ -220,8 +240,8 @@ pub fn get_vertex_buffer_layout() -> wgpu::VertexBufferLayout<'static> {
 }
 
 pub fn get_projection_view_matrix(aspect_ratio: f32) -> glam::Mat4 {
-    let projection = glam::Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 20.0);
-    let view = glam::Mat4::look_at_rh(glam::Vec3::new(3.0f32, -10.0, 6.0), glam::Vec3::new(0f32, 0.0, 0.0), glam::Vec3::Z);
+    let projection = glam::Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 200.0);
+    let view = glam::Mat4::look_at_rh(glam::Vec3::new(3.0f32, -20.0, 6.0), glam::Vec3::new(0f32, 0.0, 0.0), glam::Vec3::Z);
     projection * view
 }
 

@@ -140,7 +140,8 @@ fn shadow_calculation(light_id: u32, bias: f32, frag_light_space: vec4<f32>, off
     let dimensions = textureDimensions(shadow_texture_array, 0).xy;
     let texelSize = vec2<f32>(1.0, 1.0) / vec2<f32>(f32(dimensions.x), f32(dimensions.y));
     
-    for (var i = 0u; i < min(num_lights, MAX_LIGHTS); i += 1u) {
+//    for (var i = 0u; i < min(num_lights, MAX_LIGHTS); i += 1u) {
+    for (var i = 0u; i < min(1u, MAX_LIGHTS); i += 1u) {
         //let shadow = fetch_shadow(i, light.projection_view * vertex.world_position);
 
         let light = lights_uniform[i];

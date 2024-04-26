@@ -7,6 +7,7 @@ mod forward_pass;
 mod lights;
 mod shadow_pass;
 mod world;
+mod debug_shadow;
 
 use crate::event_loop::run;
 use std::sync::Arc;

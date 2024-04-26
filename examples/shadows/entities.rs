@@ -1,14 +1,18 @@
-use crate::cube::{create_cube, create_plane};
-use bytemuck::{Pod, Zeroable};
-use spark_gap::gpu_context::GpuContext;
 use std::f32::consts;
 use std::mem;
 use std::sync::Arc;
+
+use bytemuck::{Pod, Zeroable};
+use glam::{Mat4, Quat, Vec3};
 use wgpu::util::{align_to, DeviceExt};
 use wgpu::{BindGroup, BindGroupLayout, Buffer};
 
+use spark_gap::gpu_context::GpuContext;
+
+use crate::cube::{create_cube, create_plane};
+
 pub struct Entity {
-    pub mx_world: glam::Mat4,
+    pub mx_world: Mat4,
     pub rotation_speed: f32,
     pub color: wgpu::Color,
     pub vertex_buf: Arc<Buffer>,
@@ -26,7 +30,7 @@ pub struct EntityUniform {
 }
 
 pub struct CubeDesc {
-    offset: glam::Vec3,
+    offset: Vec3,
     angle: f32,
     scale: f32,
     rotation: f32,
@@ -120,7 +124,7 @@ impl Entities {
 
         let mut entities = vec![{
             Entity {
-                mx_world: glam::Mat4::IDENTITY,
+                mx_world: Mat4::IDENTITY,
                 rotation_speed: 0.0,
                 color: wgpu::Color::WHITE,
                 vertex_buf: Arc::new(plane_vertex_buf),
@@ -132,9 +136,13 @@ impl Entities {
         }];
 
         for (i, cube) in cube_descriptions.iter().enumerate() {
-            let mx_world = glam::Mat4::from_scale_rotation_translation(
-                glam::Vec3::splat(cube.scale),
-                glam::Quat::from_axis_angle(cube.offset.normalize(), cube.angle * consts::PI / 180.),
+
+            // todo: temp for just one cube
+            if i > 0 { break; }
+
+            let mx_world = Mat4::from_scale_rotation_translation(
+                Vec3::splat(cube.scale),
+                Quat::from_axis_angle(cube.offset.normalize(), cube.angle * consts::PI / 180.),
                 cube.offset,
             );
 
@@ -162,7 +170,7 @@ impl Entities {
         // update uniforms
         for entity in self.entities.iter_mut() {
             if entity.rotation_speed != 0.0 {
-                let rotation = glam::Mat4::from_rotation_x(entity.rotation_speed * consts::PI / 180.);
+                let rotation = Mat4::from_rotation_x(entity.rotation_speed * consts::PI / 180.);
                 entity.mx_world *= rotation;
             }
             let data = EntityUniform {
@@ -186,25 +194,25 @@ impl Entities {
 pub fn get_cube_descriptions() -> [CubeDesc; 4] {
     let cube_descriptions = [
         CubeDesc {
-            offset: glam::Vec3::new(-2.0, -2.0, 2.0),
+            offset: Vec3::new(-2.0, -2.0, 2.0),
             angle: 10.0,
             scale: 0.7,
             rotation: 0.1,
         },
         CubeDesc {
-            offset: glam::Vec3::new(2.0, -2.0, 2.0),
+            offset: Vec3::new(2.0, -2.0, 2.0),
             angle: 50.0,
             scale: 1.3,
             rotation: 0.2,
         },
         CubeDesc {
-            offset: glam::Vec3::new(-2.0, 2.0, 2.0),
+            offset: Vec3::new(-2.0, 2.0, 2.0),
             angle: 140.0,
             scale: 1.1,
             rotation: 0.3,
         },
         CubeDesc {
-            offset: glam::Vec3::new(2.0, 2.0, 2.0),
+            offset: Vec3::new(2.0, 2.0, 2.0),
             angle: 210.0,
             scale: 0.9,
             rotation: 0.4,
