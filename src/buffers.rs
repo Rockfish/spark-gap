@@ -1,10 +1,10 @@
 use std::num::NonZeroU32;
 use std::rc::Rc;
 
+use crate::gpu_context::GpuContext;
 use glam::Mat4;
 use wgpu::util::DeviceExt;
 use wgpu::{BindGroup, BindGroupLayout, Buffer, BufferAddress};
-use crate::gpu_context::GpuContext;
 
 pub const TRANSFORM_BIND_GROUP_LAYOUT: &str = "transform bind group layout";
 
@@ -60,6 +60,10 @@ pub fn update_uniform_box_buffer<T: bytemuck::Pod>(context: &GpuContext, buffer:
 
 pub fn update_mat4_buffer(context: &GpuContext, buffer: &Buffer, data: &Mat4) {
     context.queue.write_buffer(buffer, 0, bytemuck::cast_slice(&data.to_cols_array()));
+}
+
+pub fn update_u32_buffer(context: &GpuContext, buffer: &Buffer, data: &u32) {
+    context.queue.write_buffer(buffer, 0, bytemuck::bytes_of(data));
 }
 
 pub fn get_or_create_bind_group_layout(

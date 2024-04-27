@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
-use wgpu::Buffer;
-use wgpu::util::DeviceExt;
 use crate::gpu_context::GpuContext;
+use wgpu::util::DeviceExt;
+use wgpu::Buffer;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]

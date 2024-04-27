@@ -1,8 +1,9 @@
 use std::{borrow::Cow, f32::consts, iter, mem};
 
+use glam::{vec3, Mat4, Vec3};
 use wgpu::TextureView;
-use spark_gap::buffers::update_mat4_buffer;
 
+use spark_gap::buffers::{update_mat4_buffer, update_u32_buffer};
 use spark_gap::gpu_context::GpuContext;
 use spark_gap::texture::DEPTH_FORMAT;
 
@@ -10,7 +11,7 @@ use crate::cube::Vertex;
 use crate::debug_shadow::{create_shadow_map_material, shadow_render_debug, ShadowMaterial};
 use crate::entities::Entities;
 use crate::forward_pass::{create_forward_pass, ForwardPass};
-use crate::lights::{Lights, MAX_LIGHTS};
+use crate::lights::Lights;
 use crate::shadow_pass::{create_shadow_pass, ShadowPass};
 
 pub struct World {
@@ -21,6 +22,7 @@ pub struct World {
     pub forward_pass: ForwardPass,
     pub forward_depth: TextureView,
     pub show_shadows: bool,
+    pub layer_number: u32,
 }
 
 impl World {
@@ -31,24 +33,6 @@ impl World {
             label: None,
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("shader.wgsl"))),
         });
-
-        // One texture layer per light
-        // let shadow_texture_array_size = wgpu::Extent3d {
-        //     width: 2048,
-        //     height: 2048,
-        //     depth_or_array_layers: MAX_LIGHTS as u32,
-        // };
-        //
-        // let shadow_texture_array = gpu_context.device.create_texture(&wgpu::TextureDescriptor {
-        //     size: shadow_texture_array_size,
-        //     mip_level_count: 1,
-        //     sample_count: 1,
-        //     dimension: wgpu::TextureDimension::D2,
-        //     format: wgpu::TextureFormat::Depth32Float,
-        //     usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-        //     label: None,
-        //     view_formats: &[],
-        // });
 
         let shadow_material = create_shadow_map_material(gpu_context);
 
@@ -63,7 +47,7 @@ impl World {
             &entities.entity_bind_group_layout,
             &lights,
             &shader,
-            &shadow_material.texture
+            &shadow_material.texture,
         );
 
         World {
@@ -74,6 +58,7 @@ impl World {
             forward_pass,
             forward_depth,
             show_shadows: false,
+            layer_number: 0,
         }
     }
 
@@ -85,7 +70,8 @@ impl World {
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
-        encoder.push_debug_group("shadow passes");
+        // shadow pass
+        encoder.push_debug_group("shadow pass");
 
         for (i, light) in self.lights.lights.iter().enumerate() {
             let i = i as u32;
@@ -125,15 +111,11 @@ impl World {
                     pass.draw_indexed(0..entity.index_count as u32, 0, i..(i + 1));
                 }
             }
-
-            encoder.pop_debug_group(); // render entities
+            encoder.pop_debug_group();
         }
+        encoder.pop_debug_group();
 
-        encoder.pop_debug_group(); // shadow pass
-
-        //
         // forward pass
-        //
         encoder.push_debug_group("forward rendering pass");
 
         let frame = context
@@ -175,16 +157,29 @@ impl World {
                 occlusion_query_set: None,
             });
 
-            // display shadow map
-            if self.show_shadows == true {
-                let project_view_matrix = get_projection_view_matrix(context.config.width as f32 / context.config.height as f32);
-                // update_mat4_buffer(context, &self.shadow_material.projection_view_buffer, &self.lights.lights[1].projection_view);
-                update_mat4_buffer(context, &self.shadow_material.projection_view_buffer, &project_view_matrix);
+            let width = context.config.width as f32 / 2.0;
+            let height = context.config.height as f32 / 2.0;
 
-                pass.set_pipeline(&self.shadow_material.debug_texture_pipeline);
+            let orthographic_projection = Mat4::orthographic_rh(-width, width, -height, height, 0.1, 1000.0);
+            let view = Mat4::look_at_rh(vec3(0.0, 0.0001, 200.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 1.0));
+
+            let project_view_matrix = orthographic_projection * view;
+
+            update_mat4_buffer(context, &self.shadow_material.projection_view_buffer, &project_view_matrix);
+
+            update_u32_buffer(context, &self.shadow_material.layer_num_buffer, &self.layer_number);
+
+            // update_mat4_buffer(
+            //     context,
+            //     &self.forward_pass.projection_view_buffer,
+            //     &self.lights.lights[self.layer_number as usize].projection_view,
+            // );
+
+            if self.show_shadows == true {
+                // display shadow map
+                pass.set_pipeline(&self.shadow_material.shadow_debug_pipeline);
                 pass = shadow_render_debug(pass, &self.shadow_material);
-            }
-            else {
+            } else {
                 // forward pass
                 pass.set_pipeline(&self.forward_pass.pipeline);
                 pass.set_bind_group(0, &self.forward_pass.bind_group, &[]);
@@ -239,9 +234,9 @@ pub fn get_vertex_buffer_layout() -> wgpu::VertexBufferLayout<'static> {
     }
 }
 
-pub fn get_projection_view_matrix(aspect_ratio: f32) -> glam::Mat4 {
-    let projection = glam::Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 200.0);
-    let view = glam::Mat4::look_at_rh(glam::Vec3::new(3.0f32, -20.0, 6.0), glam::Vec3::new(0f32, 0.0, 0.0), glam::Vec3::Z);
+pub fn get_projection_view_matrix(aspect_ratio: f32) -> Mat4 {
+    let projection = Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 200.0);
+    let view = Mat4::look_at_rh(Vec3::new(3.0f32, -20.0, 6.0), Vec3::new(0f32, 0.0, 0.0), Vec3::Z);
     projection * view
 }
 

@@ -51,7 +51,7 @@ impl Lights {
                 shadow_view: create_shadow_texture_view(shadow_texture_array, 0),
             },
             Light {
-                position: glam::Vec3::new(-5.0, 7.0, 10.0),
+                position: glam::Vec3::new(-10.0, 7.0, 10.0),
                 // position: glam::Vec3::new(-5.0, 10.0, 7.0),
                 color: wgpu::Color {
                     r: 1.0,

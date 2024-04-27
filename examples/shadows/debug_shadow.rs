@@ -1,39 +1,52 @@
 use std::borrow::Cow;
+use std::mem;
 
-use glam::{Mat4, vec3};
+use glam::{vec3, Mat4};
+use wgpu::util::DeviceExt;
 use wgpu::{BindGroup, BindGroupLayout, Buffer, RenderPass, RenderPipeline, Sampler, Texture, TextureView};
 
-use spark_gap::buffers::{create_buffer_bind_group, create_mat4_buffer_init, create_uniform_bind_group_layout, TRANSFORM_BIND_GROUP_LAYOUT};
+use spark_gap::buffers::create_mat4_buffer_init;
 use spark_gap::gpu_context::{get_or_create_bind_group_layout, GpuContext};
 use spark_gap::small_mesh::{create_unit_square, SmallMesh};
 
 use crate::lights::MAX_LIGHTS;
-use crate::world::World;
 
 pub const SHADOW_WIDTH: u32 = 6 * 1024;
 pub const SHADOW_HEIGHT: u32 = 6 * 1024;
 
-pub const SHADOW_BIND_GROUP_LAYOUT: &str = "shadow comparison bind group layout";
-pub const SHADOW_COMPARISON_BIND_GROUP_LAYOUT: &str = "shadow comparison bind group layout";
-pub const SHADOW_FILTER_BIND_GROUP_LAYOUT: &str = "shadow filter bind group layout";
+pub const SHADOW_DEBUG_BIND_GROUP_LAYOUT: &str = "shadow debug bind group layout";
 
-// two choices, let world create the texture, or have it created here.
-
+// Shadow texture, filter sampler, and buffers for debug shader
 pub struct ShadowMaterial {
-    pub quad_mesh: SmallMesh,
     pub texture: Texture,
     pub texture_view: TextureView,
     pub texture_sampler: Sampler,
-    pub filter_bind_group: BindGroup,
+    pub quad_mesh: SmallMesh,
     pub projection_view_buffer: Buffer,
-    pub projection_view_bind_group: BindGroup,
     pub transform_buffer: Buffer,
-    pub transform_bind_group: BindGroup,
-    pub debug_texture_pipeline: RenderPipeline,
+    pub layer_num_buffer: Buffer,
+    pub shadow_debug_bind_group: BindGroup,
+    pub shadow_debug_pipeline: RenderPipeline,
 }
 
-
 pub fn create_shadow_map_material(context: &mut GpuContext) -> ShadowMaterial {
+    let quad_mesh = create_unit_square(context);
+
+    let scale = 400.0f32;
+    let mut model_transform = Mat4::from_scale(vec3(scale, scale, scale));
+    model_transform *= Mat4::from_rotation_z(180.0f32.to_radians());
+
+    let projection_view_buffer = create_mat4_buffer_init(context, &model_transform, "shadow debug projection view");
+
+    let transform_buffer = create_mat4_buffer_init(context, &model_transform, "shadow debug transform");
+
+    let layer_num = 0_u32;
+
+    let layer_num_buffer = context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("layer number"),
+        contents: bytemuck::bytes_of(&layer_num),
+        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+    });
 
     let texture_size = wgpu::Extent3d {
         width: 2048,
@@ -41,8 +54,9 @@ pub fn create_shadow_map_material(context: &mut GpuContext) -> ShadowMaterial {
         depth_or_array_layers: MAX_LIGHTS as u32,
     };
 
+    // multi layered depth texture
     let texture = context.device.create_texture(&wgpu::TextureDescriptor {
-        size:texture_size,
+        size: texture_size,
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
@@ -64,53 +78,90 @@ pub fn create_shadow_map_material(context: &mut GpuContext) -> ShadowMaterial {
         ..Default::default()
     });
 
-    if !context.bind_layout_cache.contains_key(SHADOW_FILTER_BIND_GROUP_LAYOUT) {
-        let layout = create_shadow_filter_bind_group_layout(context);
-        context
-            .bind_layout_cache
-            .insert(String::from(SHADOW_FILTER_BIND_GROUP_LAYOUT), layout.into());
-    }
+    let shadow_debug_layout =
+        get_or_create_bind_group_layout(context, SHADOW_DEBUG_BIND_GROUP_LAYOUT, create_shadow_filter_bind_group_layout);
 
-    let shadow_filter_layout = context.bind_layout_cache.get(SHADOW_FILTER_BIND_GROUP_LAYOUT).unwrap();
+    let shadow_debug_bind_group = context.device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: Some("shadow filter bind group"),
+        layout: &shadow_debug_layout,
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: projection_view_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: transform_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: layer_num_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: wgpu::BindingResource::TextureView(&texture_view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: wgpu::BindingResource::Sampler(&texture_sampler),
+            },
+        ],
+    });
 
-    let filter_bind_group = create_texture_bind_group(context, &shadow_filter_layout, &texture_view, &texture_sampler);
-
-    let transform_layout = get_or_create_bind_group_layout(context, TRANSFORM_BIND_GROUP_LAYOUT, create_uniform_bind_group_layout);
-
-    let scale = 7.0f32;
-    let mut model_transform = Mat4::from_scale(vec3(scale, scale, scale));
-    model_transform *= Mat4::from_rotation_z(180.0f32.to_radians());
-
-    let projection_view_buffer = create_mat4_buffer_init(context, &model_transform, "shadow debug projection view");
-    let projection_view_bind_group = create_buffer_bind_group(context, &transform_layout, &projection_view_buffer, "shadow debug projection view bind group");
-
-    let transform_buffer = create_mat4_buffer_init(context, &model_transform, "shadow debug transform");
-    let transform_bind_group = create_buffer_bind_group(context, &transform_layout, &transform_buffer, "shadow debug transform bind group");
-
-    let quad_mesh = create_unit_square(context);
-
-    let debug_texture_pipeline = create_debug_depth_render_pipeline(context);
+    let shadow_debug_pipeline = create_debug_depth_render_pipeline(context);
 
     ShadowMaterial {
-        quad_mesh,
         texture,
         texture_view,
         texture_sampler,
-        filter_bind_group,
+        quad_mesh,
         projection_view_buffer,
-        projection_view_bind_group,
         transform_buffer,
-        transform_bind_group,
-        debug_texture_pipeline,
+        layer_num_buffer,
+        shadow_debug_bind_group,
+        shadow_debug_pipeline,
     }
 }
 
-fn create_shadow_filter_bind_group_layout(context: &GpuContext) -> BindGroupLayout {
+fn create_shadow_filter_bind_group_layout(context: &GpuContext, label: &str) -> BindGroupLayout {
     context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         entries: &[
-            // 0: texture
+            // projection_view
             wgpu::BindGroupLayoutEntry {
                 binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: wgpu::BufferSize::new(mem::size_of::<Mat4>() as _),
+                },
+                count: None,
+            },
+            // transform
+            wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: wgpu::BufferSize::new(mem::size_of::<Mat4>() as _),
+                },
+                count: None,
+            },
+            // layer number
+            wgpu::BindGroupLayoutEntry {
+                binding: 2,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: wgpu::BufferSize::new(mem::size_of::<u32>() as _),
+                },
+                count: None,
+            },
+            // texture
+            wgpu::BindGroupLayoutEntry {
+                binding: 3,
                 visibility: wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Texture {
                     multisampled: false,
@@ -119,58 +170,29 @@ fn create_shadow_filter_bind_group_layout(context: &GpuContext) -> BindGroupLayo
                 },
                 count: None,
             },
-            // 1: sampler
+            // sampler
             wgpu::BindGroupLayoutEntry {
-                binding: 1,
+                binding: 4,
                 visibility: wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
                 count: None,
             },
         ],
-        label: Some(SHADOW_FILTER_BIND_GROUP_LAYOUT),
-    })
-}
-
-fn create_texture_bind_group(
-    context: &GpuContext,
-    bind_group_layout: &BindGroupLayout,
-    texture_view: &TextureView,
-    texture_sampler: &Sampler,
-) -> BindGroup {
-    context.device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("shadow filter bind group"),
-        layout: bind_group_layout,
-        entries: &[
-            wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(texture_view),
-            },
-            wgpu::BindGroupEntry {
-                binding: 1,
-                resource: wgpu::BindingResource::Sampler(texture_sampler),
-            },
-        ],
+        label: Some(label),
     })
 }
 
 pub fn create_debug_depth_render_pipeline(gpu_context: &GpuContext) -> RenderPipeline {
-
     let shader = gpu_context.device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: None,
-        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("debug_depth_shader.wgsl"))),
+        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("debug_shader.wgsl"))),
     });
 
-    // let camera_bind_group_layout = gpu_context.bind_layout_cache.get(CAMERA_BIND_GROUP_LAYOUT).unwrap();
-    let transform_bind_group_layout = gpu_context.bind_layout_cache.get(TRANSFORM_BIND_GROUP_LAYOUT).unwrap();
-    let shadow_filter_bind_group_layout = gpu_context.bind_layout_cache.get(SHADOW_FILTER_BIND_GROUP_LAYOUT).unwrap();
+    let shadow_debug_bind_group_layout = gpu_context.bind_layout_cache.get(SHADOW_DEBUG_BIND_GROUP_LAYOUT).unwrap();
 
     let pipeline_layout = gpu_context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: None,
-        bind_group_layouts: &[
-            transform_bind_group_layout, // projection view
-            transform_bind_group_layout, // model transform
-            shadow_filter_bind_group_layout
-        ],
+        bind_group_layouts: &[shadow_debug_bind_group_layout],
         push_constant_ranges: &[],
     });
 
@@ -205,15 +227,8 @@ pub fn create_debug_depth_render_pipeline(gpu_context: &GpuContext) -> RenderPip
     render_pipeline
 }
 
-pub fn shadow_render_debug<'a>(
-    mut render_pass: RenderPass<'a>,
-    shadow_map: &'a ShadowMaterial,
-) -> RenderPass<'a> {
-    render_pass.set_bind_group(0, &shadow_map.projection_view_bind_group, &[]);
-    render_pass.set_bind_group(1, &shadow_map.transform_bind_group, &[]);
-
-    render_pass.set_bind_group(2, &shadow_map.filter_bind_group, &[]);
-    // render_pass.set_bind_group(2, &shadow_map.test_material.bind_group, &[]);
+pub fn shadow_render_debug<'a>(mut render_pass: RenderPass<'a>, shadow_map: &'a ShadowMaterial) -> RenderPass<'a> {
+    render_pass.set_bind_group(0, &shadow_map.shadow_debug_bind_group, &[]);
 
     render_pass.set_vertex_buffer(0, shadow_map.quad_mesh.vertex_buffer.slice(..));
     render_pass.draw(0..6, 0..1);

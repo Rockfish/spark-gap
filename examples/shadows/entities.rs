@@ -136,9 +136,8 @@ impl Entities {
         }];
 
         for (i, cube) in cube_descriptions.iter().enumerate() {
-
             // todo: temp for just one cube
-            if i > 0 { break; }
+            // if i > 0 { break; }
 
             let mx_world = Mat4::from_scale_rotation_translation(
                 Vec3::splat(cube.scale),

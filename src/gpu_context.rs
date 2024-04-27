@@ -119,4 +119,3 @@ pub fn get_or_create_bind_group_layout(
 
     context.bind_layout_cache.get(layout_name).unwrap().clone()
 }
-
