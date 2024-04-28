@@ -14,6 +14,14 @@ use std::sync::Arc;
 use winit::event_loop::EventLoop;
 
 pub fn main() {
+
+    println!(r"
+    Controls:
+        c : switch camera from normal, light 1 position, light 2 position
+        space : toggle between normal display and shadow map display
+        0, 1 : select shadow map layer
+    ");
+
     env_logger::init();
 
     let event_loop = EventLoop::new().unwrap();

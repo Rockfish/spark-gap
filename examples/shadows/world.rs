@@ -23,6 +23,7 @@ pub struct World {
     pub forward_depth: TextureView,
     pub show_shadows: bool,
     pub layer_number: u32,
+    pub camera_position: u32,
 }
 
 impl World {
@@ -59,6 +60,7 @@ impl World {
             forward_depth,
             show_shadows: false,
             layer_number: 0,
+            camera_position: 0,
         }
     }
 
@@ -147,8 +149,7 @@ impl World {
                     store: wgpu::StoreOp::Discard,
                 }),
                 stencil_ops: None,
-            };
-
+            }; 
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: None,
                 color_attachments: &[Some(color_attachment)],
@@ -159,6 +160,7 @@ impl World {
 
             let width = context.config.width as f32 / 2.0;
             let height = context.config.height as f32 / 2.0;
+            let aspect_ratio = width / height;
 
             let orthographic_projection = Mat4::orthographic_rh(-width, width, -height, height, 0.1, 1000.0);
             let view = Mat4::look_at_rh(vec3(0.0, 0.0001, 200.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 1.0));
@@ -166,14 +168,16 @@ impl World {
             let project_view_matrix = orthographic_projection * view;
 
             update_mat4_buffer(context, &self.shadow_material.projection_view_buffer, &project_view_matrix);
-
             update_u32_buffer(context, &self.shadow_material.layer_num_buffer, &self.layer_number);
+           
+            let pv = match &self.camera_position {
+                0 => get_projection_view_matrix(aspect_ratio),
+                1 => self.lights.lights[0].projection_view,
+                2 => self.lights.lights[1].projection_view,
+                _ => Mat4::IDENTITY,
+            };
 
-            // update_mat4_buffer(
-            //     context,
-            //     &self.forward_pass.projection_view_buffer,
-            //     &self.lights.lights[self.layer_number as usize].projection_view,
-            // );
+            update_mat4_buffer(context, &self.forward_pass.projection_view_buffer, &pv);
 
             if self.show_shadows == true {
                 // display shadow map
